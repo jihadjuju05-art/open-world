@@ -1,0 +1,88 @@
+{
+ "player": {
+  "hp": 100,
+  "stamina": 100,
+  "regen": 24,
+  "regenBlock": 9,
+  "regenDelay": 1
+ },
+ "dodge": {
+  "speed": 7.5,
+  "iframes": 0.5,
+  "cost": 16,
+  "rate": 1.45,
+  "end": 0.82
+ },
+ "block": {
+  "parry": 0.25,
+  "hold": 0.38,
+  "rate": 2.2,
+  "lightCost": 0.8,
+  "heavyCost": 1.3,
+  "chip": 0.1
+ },
+ "stagger": {
+  "light": 0.35,
+  "heavy": 0.8
+ },
+ "enemy": {
+  "hp": 55,
+  "dmg": 0.6,
+  "bossHp": 260,
+  "bossDmg": 0.95,
+  "aggro": 20,
+  "reach": 1.95
+ },
+ "light": [
+  {
+   "clip": "Sword_Regular_A",
+   "rate": 0.85,
+   "win": [
+    0.3,
+    0.62
+   ],
+   "dmg": 16,
+   "cost": 9,
+   "chain": 0.5,
+   "endAt": 0.95
+  },
+  {
+   "clip": "Sword_Regular_B",
+   "rate": 0.85,
+   "win": [
+    0.3,
+    0.62
+   ],
+   "dmg": 18,
+   "cost": 9,
+   "chain": 0.5,
+   "endAt": 0.95
+  },
+  {
+   "clip": "Sword_Regular_C",
+   "rate": 1.35,
+   "win": [
+    0.1,
+    0.27
+   ],
+   "dmg": 26,
+   "cost": 13,
+   "chain": 0.3,
+   "endAt": 0.5,
+   "heavy": true
+  }
+ ],
+ "heavy": {
+  "clip": "Sword_Attack",
+  "rate": 0.95,
+  "win": [
+   0.36,
+   0.56
+  ],
+  "dmg": 40,
+  "cost": 24,
+  "chain": 1,
+  "endAt": 0.88,
+  "heavy": true
+ }
+}

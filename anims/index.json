@@ -1,0 +1,9 @@
+[
+ "walk.json",
+ "jog.json",
+ "run.json",
+ "idle.json",
+ "jump.json",
+ "crouch.json",
+ "swim.json"
+]

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+assets_src/
+__pycache__/
+*.pyc
+# Studio (developer tool) lives in a separate PRIVATE repo
+studio.html
+src/studio/
+electron/studio-main.js
+package.studio.json
+.github/workflows/studio-release.yml
+.git-studio/

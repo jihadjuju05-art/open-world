@@ -1,0 +1,158 @@
+{
+ "params": {
+  "speed": 0,
+  "grounded": 1,
+  "swim": 0
+ },
+ "entry": "idle",
+ "states": {
+  "idle": {
+   "clip": "idle"
+  },
+  "walk": {
+   "clip": "walk",
+   "rateParam": "speed",
+   "rateDiv": 1.55
+  },
+  "jog": {
+   "clip": "jog",
+   "rateParam": "speed",
+   "rateDiv": 2.9
+  },
+  "run": {
+   "clip": "run",
+   "rateParam": "speed",
+   "rateDiv": 4.7
+  },
+  "jump": {
+   "clip": "jump"
+  },
+  "swim": {
+   "clip": "swim",
+   "rateParam": "speed",
+   "rateDiv": 1.4
+  }
+ },
+ "transitions": [
+  {
+   "from": "*",
+   "to": "swim",
+   "when": [
+    [
+     "swim",
+     ">",
+     0.5
+    ]
+   ],
+   "fade": 0.25
+  },
+  {
+   "from": "swim",
+   "to": "idle",
+   "when": [
+    [
+     "swim",
+     "<",
+     0.5
+    ]
+   ],
+   "fade": 0.25
+  },
+  {
+   "from": "*",
+   "to": "jump",
+   "when": [
+    [
+     "grounded",
+     "<",
+     0.5
+    ]
+   ],
+   "fade": 0.08
+  },
+  {
+   "from": "jump",
+   "to": "idle",
+   "when": [
+    [
+     "grounded",
+     ">",
+     0.5
+    ]
+   ],
+   "fade": 0.12
+  },
+  {
+   "from": "idle",
+   "to": "walk",
+   "when": [
+    [
+     "speed",
+     ">",
+     0.3
+    ]
+   ],
+   "fade": 0.18
+  },
+  {
+   "from": "walk",
+   "to": "idle",
+   "when": [
+    [
+     "speed",
+     "<",
+     0.25
+    ]
+   ],
+   "fade": 0.18
+  },
+  {
+   "from": "walk",
+   "to": "jog",
+   "when": [
+    [
+     "speed",
+     ">",
+     2.3
+    ]
+   ],
+   "fade": 0.22
+  },
+  {
+   "from": "jog",
+   "to": "walk",
+   "when": [
+    [
+     "speed",
+     "<",
+     2
+    ]
+   ],
+   "fade": 0.22
+  },
+  {
+   "from": "jog",
+   "to": "run",
+   "when": [
+    [
+     "speed",
+     ">",
+     4.3
+    ]
+   ],
+   "fade": 0.22
+  },
+  {
+   "from": "run",
+   "to": "jog",
+   "when": [
+    [
+     "speed",
+     "<",
+     4
+    ]
+   ],
+   "fade": 0.22
+  }
+ ]
+}

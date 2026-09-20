@@ -1,0 +1,541 @@
+{
+ "CommonTree_1": {
+  "tag": "tree",
+  "tris": 6265,
+  "from": 6265,
+  "bytes": 3233452,
+  "size": [
+   4.311,
+   7.265,
+   4.578
+  ]
+ },
+ "CommonTree_1_lod1": {
+  "tag": "tree",
+  "tris": 1253,
+  "from": 6265,
+  "bytes": 2908000,
+  "size": [
+   3.778,
+   7.275,
+   4.229
+  ]
+ },
+ "CommonTree_2": {
+  "tag": "tree",
+  "tris": 5648,
+  "from": 5648,
+  "bytes": 3175104,
+  "size": [
+   4.464,
+   7.643,
+   4.276
+  ]
+ },
+ "CommonTree_2_lod1": {
+  "tag": "tree",
+  "tris": 1129,
+  "from": 5648,
+  "bytes": 2895180,
+  "size": [
+   4.05,
+   7.724,
+   3.959
+  ]
+ },
+ "CommonTree_3": {
+  "tag": "tree",
+  "tris": 3505,
+  "from": 3505,
+  "bytes": 3049644,
+  "size": [
+   4.063,
+   9.425,
+   4.241
+  ]
+ },
+ "CommonTree_3_lod1": {
+  "tag": "tree",
+  "tris": 701,
+  "from": 3505,
+  "bytes": 2852204,
+  "size": [
+   3.726,
+   9.298,
+   4.023
+  ]
+ },
+ "CommonTree_4": {
+  "tag": "tree",
+  "tris": 4066,
+  "from": 4066,
+  "bytes": 3069892,
+  "size": [
+   3.826,
+   9.438,
+   3.755
+  ]
+ },
+ "CommonTree_4_lod1": {
+  "tag": "tree",
+  "tris": 813,
+  "from": 4066,
+  "bytes": 2865524,
+  "size": [
+   3.427,
+   9.345,
+   3.378
+  ]
+ },
+ "Pine_1": {
+  "tag": "tree",
+  "tris": 3947,
+  "from": 3947,
+  "bytes": 2933852,
+  "size": [
+   4.945,
+   7.317,
+   4.538
+  ]
+ },
+ "Pine_1_lod1": {
+  "tag": "tree",
+  "tris": 789,
+  "from": 3947,
+  "bytes": 2754648,
+  "size": [
+   4.298,
+   7.333,
+   3.739
+  ]
+ },
+ "Pine_2": {
+  "tag": "tree",
+  "tris": 3648,
+  "from": 3648,
+  "bytes": 2917696,
+  "size": [
+   5.728,
+   7.376,
+   5.221
+  ]
+ },
+ "Pine_2_lod1": {
+  "tag": "tree",
+  "tris": 729,
+  "from": 3648,
+  "bytes": 2748208,
+  "size": [
+   5.171,
+   7.394,
+   5.221
+  ]
+ },
+ "Pine_3": {
+  "tag": "tree",
+  "tris": 4964,
+  "from": 4964,
+  "bytes": 3000548,
+  "size": [
+   3.611,
+   7.392,
+   3.996
+  ]
+ },
+ "Pine_3_lod1": {
+  "tag": "tree",
+  "tris": 992,
+  "from": 4964,
+  "bytes": 2774152,
+  "size": [
+   3.611,
+   7.404,
+   3.909
+  ]
+ },
+ "Pine_4": {
+  "tag": "tree",
+  "tris": 3370,
+  "from": 3370,
+  "bytes": 2909508,
+  "size": [
+   5.802,
+   10.236,
+   5.371
+  ]
+ },
+ "Pine_4_lod1": {
+  "tag": "tree",
+  "tris": 674,
+  "from": 3370,
+  "bytes": 2741596,
+  "size": [
+   5.34,
+   10.267,
+   4.887
+  ]
+ },
+ "TwistedTree_1": {
+  "tag": "tree",
+  "tris": 9564,
+  "from": 9564,
+  "bytes": 3936420,
+  "size": [
+   13.516,
+   16.725,
+   11.549
+  ]
+ },
+ "TwistedTree_1_lod1": {
+  "tag": "tree",
+  "tris": 1912,
+  "from": 9564,
+  "bytes": 3407940,
+  "size": [
+   13.09,
+   16.827,
+   11.217
+  ]
+ },
+ "TwistedTree_2": {
+  "tag": "tree",
+  "tris": 9134,
+  "from": 9134,
+  "bytes": 3902376,
+  "size": [
+   10.563,
+   18.949,
+   9.203
+  ]
+ },
+ "TwistedTree_2_lod1": {
+  "tag": "tree",
+  "tris": 1826,
+  "from": 9134,
+  "bytes": 3399772,
+  "size": [
+   10.213,
+   19.021,
+   8.84
+  ]
+ },
+ "DeadTree_1": {
+  "tag": "tree",
+  "tris": 6169,
+  "from": 6169,
+  "bytes": 3502552,
+  "size": [
+   6.149,
+   9.495,
+   5.749
+  ]
+ },
+ "DeadTree_1_lod1": {
+  "tag": "tree",
+  "tris": 1240,
+  "from": 6169,
+  "bytes": 3197308,
+  "size": [
+   6.137,
+   9.584,
+   5.748
+  ]
+ },
+ "DeadTree_2": {
+  "tag": "tree",
+  "tris": 6557,
+  "from": 6557,
+  "bytes": 3533264,
+  "size": [
+   6.73,
+   11.488,
+   6.379
+  ]
+ },
+ "DeadTree_2_lod1": {
+  "tag": "tree",
+  "tris": 1340,
+  "from": 6557,
+  "bytes": 3209000,
+  "size": [
+   6.739,
+   11.548,
+   6.375
+  ]
+ },
+ "Bush_Common": {
+  "tag": "plant",
+  "tris": 900,
+  "from": 900,
+  "bytes": 115580,
+  "size": [
+   1.915,
+   1.582,
+   1.965
+  ]
+ },
+ "Bush_Common_Flowers": {
+  "tag": "plant",
+  "tris": 1368,
+  "from": 1368,
+  "bytes": 380800,
+  "size": [
+   1.915,
+   1.582,
+   1.965
+  ]
+ },
+ "Fern_1": {
+  "tag": "plant",
+  "tris": 288,
+  "from": 288,
+  "bytes": 260892,
+  "size": [
+   2.827,
+   0.84,
+   2.652
+  ]
+ },
+ "Plant_1": {
+  "tag": "plant",
+  "tris": 120,
+  "from": 120,
+  "bytes": 255164,
+  "size": [
+   1.273,
+   1.014,
+   1.386
+  ]
+ },
+ "Plant_1_Big": {
+  "tag": "plant",
+  "tris": 360,
+  "from": 360,
+  "bytes": 266412,
+  "size": [
+   1.807,
+   2.348,
+   1.954
+  ]
+ },
+ "Plant_7": {
+  "tag": "plant",
+  "tris": 48,
+  "from": 48,
+  "bytes": 251296,
+  "size": [
+   1.048,
+   0.25,
+   0.962
+  ]
+ },
+ "Plant_7_Big": {
+  "tag": "plant",
+  "tris": 112,
+  "from": 112,
+  "bytes": 253996,
+  "size": [
+   1.311,
+   0.253,
+   1.362
+  ]
+ },
+ "Grass_Common_Short": {
+  "tag": "plant",
+  "tris": 155,
+  "from": 155,
+  "bytes": 42780,
+  "size": [
+   0.639,
+   1.334,
+   0.737
+  ]
+ },
+ "Grass_Common_Tall": {
+  "tag": "plant",
+  "tris": 326,
+  "from": 326,
+  "bytes": 50408,
+  "size": [
+   0.895,
+   1.873,
+   0.993
+  ]
+ },
+ "Grass_Wispy_Short": {
+  "tag": "plant",
+  "tris": 494,
+  "from": 494,
+  "bytes": 63164,
+  "size": [
+   1.322,
+   1.072,
+   1.21
+  ]
+ },
+ "Grass_Wispy_Tall": {
+  "tag": "plant",
+  "tris": 622,
+  "from": 622,
+  "bytes": 68108,
+  "size": [
+   1.54,
+   1.672,
+   1.594
+  ]
+ },
+ "Clover_1": {
+  "tag": "plant",
+  "tris": 379,
+  "from": 379,
+  "bytes": 262412,
+  "size": [
+   0.796,
+   1.145,
+   0.764
+  ]
+ },
+ "Flower_3_Group": {
+  "tag": "plant",
+  "tris": 755,
+  "from": 755,
+  "bytes": 484908,
+  "size": [
+   1.488,
+   2.055,
+   1.591
+  ]
+ },
+ "Flower_4_Group": {
+  "tag": "plant",
+  "tris": 1690,
+  "from": 1690,
+  "bytes": 519012,
+  "size": [
+   1.781,
+   2.487,
+   1.368
+  ]
+ },
+ "Mushroom_Common": {
+  "tag": "plant",
+  "tris": 880,
+  "from": 880,
+  "bytes": 381808,
+  "size": [
+   0.564,
+   0.463,
+   0.779
+  ]
+ },
+ "Pebble_Round_3": {
+  "tag": "plant",
+  "tris": 128,
+  "from": 128,
+  "bytes": 332040,
+  "size": [
+   0.45,
+   0.099,
+   0.485
+  ]
+ },
+ "Rock_Medium_1": {
+  "tag": "rock",
+  "tris": 342,
+  "from": 342,
+  "bytes": 1114928,
+  "size": [
+   3.225,
+   2.26,
+   2.989
+  ]
+ },
+ "Rock_Medium_2": {
+  "tag": "rock",
+  "tris": 244,
+  "from": 244,
+  "bytes": 1111072,
+  "size": [
+   3.049,
+   1.899,
+   2.479
+  ]
+ },
+ "Rock_Medium_3": {
+  "tag": "rock",
+  "tris": 522,
+  "from": 522,
+  "bytes": 1121772,
+  "size": [
+   3.42,
+   2.316,
+   3.476
+  ]
+ },
+ "boulder_01": {
+  "tag": "rock",
+  "tris": 26611,
+  "from": 66122,
+  "bytes": 4813872,
+  "size": [
+   1.275,
+   1.01,
+   1.838
+  ]
+ },
+ "namaqualand_boulder_02": {
+  "tag": "rock",
+  "tris": 2600,
+  "from": 97964,
+  "bytes": 2928184,
+  "size": [
+   2.517,
+   0.877,
+   1.23
+  ]
+ },
+ "rock_07": {
+  "tag": "rock",
+  "tris": 1200,
+  "from": 14844,
+  "bytes": 1758400,
+  "size": [
+   0.17,
+   0.143,
+   0.321
+  ]
+ },
+ "rock_09": {
+  "tag": "rock",
+  "tris": 999,
+  "from": 12416,
+  "bytes": 1705012,
+  "size": [
+   0.074,
+   0.033,
+   0.145
+  ]
+ },
+ "tree_stump_01": {
+  "tag": "rock",
+  "tris": 2500,
+  "from": 41046,
+  "bytes": 3050200,
+  "size": [
+   1.425,
+   0.571,
+   1.59
+  ]
+ },
+ "dead_tree_trunk": {
+  "tag": "rock",
+  "tris": 1799,
+  "from": 101802,
+  "bytes": 2545088,
+  "size": [
+   3.048,
+   0.291,
+   0.273
+  ]
+ }
+}

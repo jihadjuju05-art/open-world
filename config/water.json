@@ -1,0 +1,38 @@
+{
+ "level": 0,
+ "amp": 1,
+ "opacity": 0.8,
+ "foam": 0.55,
+ "specular": 1.4,
+ "skyReflect": 0.8,
+ "timeScale": 1,
+ "shallow": "#2f9aa8",
+ "deep": "#0b3c5c",
+ "waves": [
+  {
+   "dir": 0.35,
+   "steep": 0.22,
+   "len": 46
+  },
+  {
+   "dir": 1.1,
+   "steep": 0.16,
+   "len": 27
+  },
+  {
+   "dir": -0.5,
+   "steep": 0.12,
+   "len": 16
+  },
+  {
+   "dir": 2.2,
+   "steep": 0.08,
+   "len": 9
+  }
+ ],
+ "buoyancy": {
+  "k": 26,
+  "damp": 2.6,
+  "density": 1
+ }
+}
