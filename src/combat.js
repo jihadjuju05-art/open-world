@@ -59,7 +59,7 @@ export class PlayerCombat {
   reset() { this.hp = this.maxHp = TUNING.player.hp; this.stamina = this.maxStamina = TUNING.player.stamina; this.state = 'free'; this.t = 0; this.combo = 0; this.hitSet = new Set(); this.iframes = 0; this.blockT = 0; this.blocking = false; this.deadT = 0; this.stagT = 0; this.regenDelay = 0; }
   get body() { return this.player.gltf; }
   get busy() { return this.state !== 'free' && this.state !== 'block'; }
-  moveScale() { return this.state === 'free' ? (this.emote && !this.emote.loop ? .4 : 1) : this.state === 'block' ? .45 : 0; }
+  moveScale() { return this.state === 'free' ? (this.emote ? 0 : 1) : this.state === 'block' ? .45 : 0; }      // emotes keep the character in place
   forward() { return new V3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)); }
   // ---- inputs (called from main.js) ----
   toggleDraw() { if (this.busy || !this.alive || this.player.mounted) return; this.setDrawn(!this.drawn); }
@@ -123,7 +123,7 @@ export class PlayerCombat {
     switch (this.state) {
       case 'free':
         if (this.blocking && this.drawn && this.stamina > 4) { this.state = 'block'; this.blockT = 0; this.cancelEmote(); b.startAction('Sword_Block', { rate: TUNING.block.rate, fade: .06 }); }
-        else if (this.emote) { /* emote clip keeps playing */ }
+        else if (this.emote) { if (!this.emote.loop && b.actionProgress() >= .97) this.cancelEmote(); }      // one-shot emotes release the character when finished
         else if (this.drawn && b.action) b.endAction();
         break;
       case 'block': {

@@ -60,20 +60,24 @@ export class PlayerHorse {
     else if (this.mode === 'come') {
       const dx = P.x - this.pos.x, dz = P.z - this.pos.z, d = Math.hypot(dx, dz);
       if (d < 3.2) { this.mode = 'idle'; want = 0; } else { let a = Math.atan2(dx, dz) - this.yaw; a = ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; turn = Math.max(-2.6, Math.min(2.6, a * 3)); want = d > 25 ? SPEED.gallop : d > 9 ? SPEED.trot : SPEED.walk; }
-    } else if (this.distance > 14 && this.distance < 90) { this.mode = 'come'; }                 // trots after its owner if left behind
+    } else if (this.distance > 14 && this.distance < 160) { this.mode = 'come'; }                 // trots after its owner if left behind
+    const g0 = T.height(this.pos.x, this.pos.z), depth = Math.max(0, -g0); this.depth = depth; this.swimming = depth > 1.05;       // wades through shallows, swims (with or without rider) when it is deep
+    want *= this.swimming ? .7 : 1 - Math.min(.35, depth * .3);
     this.speed += (want - this.speed) * Math.min(1, dt * (Math.abs(want) > Math.abs(this.speed) ? 1.6 : 3.2));
     const tr = turn * (Math.abs(this.speed) > .3 ? 1 : .3); this.turnRate += (tr - this.turnRate) * Math.min(1, dt * 6); this.yaw += this.turnRate * dt;
     if (Math.abs(this.speed) > .02) {
       const nx = this.pos.x + Math.sin(this.yaw) * this.speed * dt, nz = this.pos.z + Math.cos(this.yaw) * this.speed * dt, nh = T.height(nx, nz);
-      if (nh < -.9 || Math.abs(nh - this.pos.y) > .8 + Math.abs(this.speed) * dt) { this.speed *= .2; } else { this.pos.x = nx; this.pos.z = nz; }
+      const wet = nh < -.1 || g0 < -.1;
+      if (!wet && Math.abs(nh - this.pos.y) > .8 + Math.abs(this.speed) * dt) { this.speed *= .2; } else { this.pos.x = nx; this.pos.z = nz; }
+      if (depth > .12) { const rv = T.riverAt(this.pos.x, this.pos.z), push = rv.t * (.6 + .5 * Math.min(1, depth)); this.pos.x += rv.fx * push * dt; this.pos.z += rv.fz * push * dt; }      // river current
       T.pushOut(this.pos, 1.0);
     }
     const gh = T.height(this.pos.x, this.pos.z), f = Math.sin(this.yaw) * .9, ff = Math.cos(this.yaw) * .9;
-    this.pos.y += (gh - this.pos.y) * Math.min(1, dt * 14); this.pitch += (Math.atan2(T.height(this.pos.x - f, this.pos.z - ff) - T.height(this.pos.x + f, this.pos.z + ff), 1.8) - this.pitch) * Math.min(1, dt * 6);
+    const yT = this.swimming ? -.85 + Math.sin(performance.now() * .002) * .04 : gh; this.pos.y += (yT - this.pos.y) * Math.min(1, dt * (this.swimming ? 6 : 14)); this.pitch += ((this.swimming ? 0 : Math.atan2(T.height(this.pos.x - f, this.pos.z - ff) - T.height(this.pos.x + f, this.pos.z + ff), 1.8)) - this.pitch) * Math.min(1, dt * 6);
     const s = Math.abs(this.speed); this.roll += (-this.turnRate * Math.min(1, s / 9) * .16 - this.roll) * Math.min(1, dt * 5);   // leans into turns
     o.root.position.copy(this.pos); o.root.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
     this.gait = s > 8 ? 'gallop' : s > 3.4 ? 'trot' : s > .4 ? 'walk' : 'idle';
-    this.play(this.gait === 'gallop' ? 'run' : this.gait === 'idle' ? 'idle' : 'walk', this.gait === 'trot' ? 1.75 : this.gait === 'walk' ? s / (SPECIES[this.look.model]?.walk || 1.5) * .5 + .5 : 1);
+    this.play(this.gait === 'gallop' && !this.swimming ? 'run' : this.gait === 'idle' ? 'idle' : 'walk', this.swimming ? .9 : this.gait === 'trot' ? 1.75 : this.gait === 'walk' ? s / (SPECIES[this.look.model]?.walk || 1.5) * .5 + .5 : 1);
     o.mixer.update(dt); o.root.updateMatrixWorld(true);
     if (o.torso && this.torsoBase === null && this.gait === 'idle') this.torsoBase = o.torso.getWorldPosition(new THREE.Vector3()).y - this.pos.y;
     if (this.mounted) { this.player.pos.set(this.pos.x, this.pos.y, this.pos.z); this.player.speed = s; this.player.yaw = this.yaw; }

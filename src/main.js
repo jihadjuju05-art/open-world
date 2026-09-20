@@ -203,7 +203,7 @@ function frame(dt) {
       gait: keys.has('ShiftLeft') || keys.has('ShiftRight') ? 'run' : keys.has('KeyC') ? 'walk' : 'jog', jump: jumpPressed };
     jumpPressed = false;
     if (horse.riding) { horse.update(dt, { x: input.x, z: input.z, gait: input.gait }); player.rideUpdate(dt); wading = 0; }
-    else { combat.update(dt, input, camYaw); const ms = combat.moveScale(); wading = player.update(dt, { x: input.x * ms, z: -input.z * ms, gait: input.gait, jump: input.jump && ms > 0 }, camYaw); horse.update(dt, input); }   // D = camera right, W = camera forward
+    else { if (combat.emote && (input.x || input.z || input.jump)) combat.cancelEmote(); combat.update(dt, input, camYaw); const ms = combat.moveScale(); wading = player.update(dt, { x: input.x * ms, z: -input.z * ms, gait: input.gait, jump: input.jump && ms > 0 }, camYaw); horse.update(dt, input); }   // D = camera right, W = camera forward
     sky.set(sky.hour + dt * timeScale * 24 / (settings.dayLength * 60));
     worldMap.reveal(player.pos.x, player.pos.z); worldMap.persist(dt);
     const focus = new THREE.Vector3(player.pos.x, player.pos.y + (charBody ? 1.65 : 1.55), player.pos.z), cp = Math.cos(camPitch);
