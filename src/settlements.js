@@ -2,6 +2,7 @@
 // (A* over the raw terrain, smoothed, with a per-road height profile) and every building placement.
 // Pure maths (no THREE) so it runs in the terrain worker, the map worker and the main thread; deterministic per seed.
 import { hash2, smoothstep } from './noise.js';
+import { SIZES, STYLES } from './housedata.js';
 
 export const WORLD_R = 3600;
 export const FRONT_OFFSET = 0;                       // model front is +Z; tweak if a pack faces another way
@@ -12,7 +13,7 @@ export const BLD = {
   mill: ['props/far_TowerWindmill', 9, 4.2], sawmill: ['props/vil_Sawmill', 7.5, 5], well: ['props/vil_Well', 2, 1.5], stall1: ['props/vil_MarketStand_1', 2.7, 1.9], stall2: ['props/vil_MarketStand_2', 2.7, 1.9],
   cart: ['props/vil_Cart', 2.7, 1.7], barrel: ['props/vil_Barrel', 0.9, .5], hay: ['props/vil_Hay', 1.8, 1], bench: ['props/vil_Bench_1', 1.8, 0], gazebo: ['props/vil_Gazebo', 3.8, 2.6],
   barn: ['props/far_Barn', 9, 4.8], bigbarn: ['props/far_BigBarn', 10, 5.2], openbarn: ['props/far_OpenBarn', 7, 3.6], sbarn: ['props/far_Small_Barn', 7, 3.8], silo: ['props/far_Silo', 4, 2.2], coop: ['props/far_ChickenCoop', 2.6, 1.4],
-  fence: ['props/far_Fence', 5.9, 0], tent: ['props/sur_tent_1', 3.6, 1.8], tent2: ['props/sur_tentClosed_1', 3.4, 1.8], fire: ['props/sur_campfire_1', 1.4, .6], crate: ['props/sur_box_1', 1, .5],
+  home: ['props/none', 10, 0], fence: ['props/far_Fence', 5.9, 0], tent: ['props/sur_tent_1', 3.6, 1.8], tent2: ['props/sur_tentClosed_1', 3.4, 1.8], fire: ['props/sur_campfire_1', 1.4, .6], crate: ['props/sur_box_1', 1, .5],
 };
 export const BLD_NAMES = Object.keys(BLD);
 const TYPE = { 0: 'Ciudad', 1: 'Pueblo', 2: 'Aldea', 3: 'Granja', 4: 'Campamento' };
@@ -110,8 +111,8 @@ export function buildPlan(seed, raw) {
 
   // ---------- building layouts ----------
   const chunks = new Map(), colliders = [];
-  const put = (s, type, x, z, rot, sc = 1) => {
-    const h = H(x, z); if (h < 1 || S(x, z) > .5) return false; const it = { t: type, x, z, rot, sc, s: s.id }; s.items.push(it);
+  const put = (s, type, x, z, rot, sc = 1, hp = null) => {
+    const h = H(x, z); if (h < 1 || S(x, z) > .5) return false; const it = { t: type, x, z, rot, sc, s: s.id, hp }; s.items.push(it);
     const k = Math.floor(x / 64) + ',' + Math.floor(z / 64); (chunks.get(k) || chunks.set(k, []).get(k)).push(it); return true;
   };
   const houseKeys = ['house1', 'house2', 'house3', 'house4'];
@@ -119,27 +120,33 @@ export function buildPlan(seed, raw) {
     const rd = roadAt(s.x, s.z); if (rd.d < 30) s.axis = Math.atan2(rd.dz, rd.dx);
     const A = [Math.cos(s.axis), Math.sin(s.axis)], P = [-A[1], A[0]], face = sgn => Math.atan2(-sgn * P[0], -sgn * P[1]) + FRONT_OFFSET;
     const at = (u, v) => [s.x + A[0] * u + P[0] * v, s.z + A[1] * u + P[1] * v], rnd = (a, b, c) => hs(s.id * 13 + a, b, c);
+    s.style = s.type === 0 ? 'victorian' : s.type === 1 ? (rnd(1, 1, 90) < .6 ? 'western' : 'victorian') : s.type === 2 ? ['western', 'rustic', 'modern', 'western'][Math.floor(rnd(2, 3, 91) * 4)] : 'rustic';
+    const pickSize = (q, i) => s.type === 0 ? (q < .15 ? 'small' : q < .45 ? 'medium' : q < .8 || i % 3 !== 1 ? 'large' : 'mansion') : s.type === 1 ? (q < .3 ? 'small' : q < .75 ? 'medium' : 'large') : (q < .55 ? 'small' : q < .9 ? 'medium' : 'large');
+    const home = (u, sgn, i, row2) => {                                                                     // a procedural house with a real interior
+      const q = rnd(i, sgn, row2 ? 61 : 60), size = row2 && SIZES[pickSize(q, i)][0] > 11 ? 'medium' : pickSize(q, i), [Wd, Dp] = SIZES[size], v = sgn * ((row2 ? 25 : 9.5) + Dp / 2), [x, z] = at(u + (rnd(i, sgn, 3) - .5) * 1.5, v);
+      const sty = rnd(i, sgn, 64) < .2 ? STYLES[Math.floor(rnd(i, sgn, 65) * 4)] : s.style; put(s, 'home', x, z, face(sgn) + (rnd(i, sgn, 5) - .5) * .05, 1, { seed: 1 + Math.floor(rnd(i, sgn, row2 ? 63 : 62) * 1e6), style: sty, size }); return size;
+    };
     if (s.type <= 2) {
-      const L = [120, 75, 48][s.type], gap = [12, 12, 14][s.type];
+      const L = [130, 85, 55][s.type], gap = [16, 16, 17][s.type];
       const [wx, wz] = at(0, 0); put(s, 'well', wx, wz, 0);
       for (const sgn of [-1, 1]) for (let u = -L, i = 0; u <= L; u += gap + rnd(i, sgn, 1) * 4, i++) {
         if (Math.abs(u) < 9 && !s.type) continue; if (Math.abs(u) < 7) continue;
         const v = sgn * (10 + rnd(i, sgn, 2) * 2.5), [x, z] = at(u + (rnd(i, sgn, 3) - .5) * 2, v), r = rnd(i, sgn, 4);
         const special = (sgn === 1 && Math.abs(u + gap * 1.2) < gap * .6) ? 'inn' : (sgn === -1 && Math.abs(u - gap * 1.4) < gap * .6) ? 'smith' : (s.type < 2 && sgn === 1 && u > L - gap * 1.2 && u < L) ? 'tower' : (sgn === -1 && u < -L + gap * 1.5 && s.type < 2) ? 'stable' : null;
         if (special === 'inn' || special === 'stable') { put(s, special, x, z, face(sgn), 1); continue; } if (special) { put(s, special, x, z, face(sgn), 1); continue; }
-        put(s, houseKeys[Math.floor(r * 4) % 4], x, z, face(sgn) + (rnd(i, sgn, 5) - .5) * .1, .92 + rnd(i, sgn, 6) * .2);
-        if (rnd(i, sgn, 15) < [.75, .6, .35][s.type]) { const [x2, z2] = at(u + (rnd(i, sgn, 16) - .5) * 4, sgn * (22 + rnd(i, sgn, 17) * 3)); put(s, houseKeys[Math.floor(rnd(i, sgn, 18) * 4) % 4], x2, z2, face(sgn) + (rnd(i, sgn, 19) - .5) * .3, .9 + rnd(i, sgn, 20) * .2); }     // second row behind
+        const sz0 = home(u, sgn, i, false); if (sz0 === 'mansion') u += 8; void r; void x; void z;
+        if (rnd(i, sgn, 15) < [.6, .5, .3][s.type]) home(u, sgn, i, true);      // second row behind
       }
       for (let k = 0; k < 2 + (2 - s.type) * 2; k++) { const [x, z] = at((k - 1.5) * 6, 5.5 * (k % 2 ? 1 : -1)); put(s, k % 3 === 0 ? 'stall1' : k % 3 === 1 ? 'stall2' : 'cart', x, z, face(k % 2 ? -1 : 1) + rnd(k, 0, 8) * .3); }
       if (s.type < 2) {                                                                         // cross street
         const l2 = [70, 45][s.type];
-        for (const sgn of [-1, 1]) for (let u = 22, i = 0; u < l2; u += 15 + rnd(i, sgn, 11) * 4, i++) { const cx = s.x + P[0] * sgn * u, cz = s.z + P[1] * sgn * u; for (const side of [-1, 1]) { const px = cx + A[0] * side * (10 + rnd(i, side, 12) * 2), pz = cz + A[1] * side * (10 + rnd(i, side, 12) * 2); put(s, houseKeys[Math.floor(rnd(i + sgn * 9, side, 13) * 4) % 4], px, pz, Math.atan2(-side * A[0], -side * A[1]), .92 + rnd(i, side, 14) * .2); } }
+        for (const sgn of [-1, 1]) for (let u = 22, i = 0; u < l2; u += 15 + rnd(i, sgn, 11) * 4, i++) { const cx = s.x + P[0] * sgn * u, cz = s.z + P[1] * sgn * u; for (const side of [-1, 1]) { const px = cx + A[0] * side * (10 + rnd(i, side, 12) * 2), pz = cz + A[1] * side * (10 + rnd(i, side, 12) * 2); put(s, 'home', px, pz, Math.atan2(-side * A[0], -side * A[1]), 1, { seed: 1 + Math.floor(rnd(i + sgn * 9, side, 13) * 1e6), style: s.style, size: 'small' }); } }
       }
       if (s.type < 2) { const [x, z] = at(L * .3, 34 * (rnd(1, 1, 30) < .5 ? 1 : -1)); put(s, 'mill', x, z, hs(s.id, 2, 31) * 6.28); }
       for (let k = 0; k < 3 + (2 - s.type) * 2; k++) { const [x, z] = at((rnd(k, 5, 32) - .5) * L * 1.6, (rnd(k, 6, 32) < .5 ? -1 : 1) * 7.5); put(s, k % 2 ? 'barrel' : 'hay', x, z, rnd(k, 7, 33) * 6.28); }
     } else if (s.type === 3) {
       const kinds = ['barn', 'bigbarn', 'sbarn', 'openbarn'], main = kinds[Math.floor(rnd(1, 1, 40) * 4)];
-      let [x, z] = at(0, 0); put(s, main, x, z, face(1)); [x, z] = at(-12, -8); put(s, 'silo', x, z, 0); [x, z] = at(11, -9); put(s, 'coop', x, z, face(1) + .3); [x, z] = at(-9, 12); put(s, 'house' + (1 + Math.floor(rnd(2, 2, 41) * 4)), x, z, face(-1));
+      let [x, z] = at(0, 0); put(s, main, x, z, face(1)); [x, z] = at(-12, -8); put(s, 'silo', x, z, 0); [x, z] = at(11, -9); put(s, 'coop', x, z, face(1) + .3); [x, z] = at(-9, 12); put(s, 'home', x, z, face(-1), 1, { seed: 1 + Math.floor(rnd(2, 2, 41) * 1e6), style: 'rustic', size: 'small' });
       for (let k = -3; k <= 3; k++) { [x, z] = at(k * 5.9, 20); put(s, 'fence', x, z, Math.atan2(A[0], A[1]) + 1.5708); [x, z] = at(k * 5.9, -20); put(s, 'fence', x, z, Math.atan2(A[0], A[1]) + 1.5708); [x, z] = at(-18, k * 5.9); put(s, 'fence', x, z, Math.atan2(P[0], P[1]) + 1.5708); [x, z] = at(18, k * 5.9); put(s, 'fence', x, z, Math.atan2(P[0], P[1]) + 1.5708); }
     } else {
       let [x, z] = at(0, 0); put(s, 'fire', x, z, 0);

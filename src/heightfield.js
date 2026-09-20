@@ -2,6 +2,7 @@
 // No THREE dependency so it can run inside a Web Worker.
 import { makeNoise, fbm, hash2, smoothstep } from './noise.js';
 import { buildPlan, BLD_NAMES, WORLD_R } from './settlements.js';
+import { SIZES, STYLES } from './housedata.js';
 
 export const WATER_LEVEL = 0;
 export const CHUNK = 64;
@@ -114,7 +115,7 @@ export function createHeightField(seed = 20240519) {
         grass.push(lx, lz, h, .6 + hash2(gi, gj, 24) * .7, dry * .8 + hash2(gi, gj, 25) * .2);
       }
     }
-    const bld = []; for (const it of P.buildingsForChunk(cx, cz)) bld.push(BLD_NAMES.indexOf(it.t), it.x - ox, it.z - oz, height(it.x, it.z) - .12, it.rot, it.sc);
+    const bld = []; for (const it of P.buildingsForChunk(cx, cz)) bld.push(BLD_NAMES.indexOf(it.t), it.x - ox, it.z - oz, height(it.x, it.z) - .05, it.rot, it.sc, it.hp ? it.hp.seed : 0, it.hp ? STYLES.indexOf(it.hp.style) * 10 + Object.keys(SIZES).indexOf(it.hp.size) : -1);
     return { trees, rocks, grass, plants, bld };
   }
   // Forest density 0..1 (for the world map)

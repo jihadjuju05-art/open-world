@@ -16,6 +16,7 @@ import { PlayerCombat, EMOTES, applyTuning } from './combat.js';
 import { EnemyManager } from './enemies.js';
 import { Cinematics, Story } from './story.js';
 import { Multiplayer } from './net.js';
+import { HouseManager } from './houses.js';
 import { PlayerHorse, DEFAULT_HORSE } from './horse.js';
 import { DialogueUI } from './dialogue_ui.js';
 import { loadCharacterAssets, GltfBody } from './character.js';
@@ -53,6 +54,7 @@ const veg = new Vegetation();
   $('loadmsg').textContent = 'Cargando vegetación…'; await veg.load([...new Set(names)], f => { $('loadbar').style.width = (f * 40) + '%'; });
 }
 const sky = new Sky(scene), terrain = new Terrain(scene, 20240519, veg), birds = new Birds(scene), ambience = new Ambience();
+const houses = new HouseManager({ scene, terrain, sky }); terrain.houses = houses;
 const cfgWater = mergeWater(await fetch('config/water.json').then(r => r.ok ? r.json() : null).catch(() => null) || {});
 const fx = new WaterFX(scene, cfgWater.level);
 const clips = {}; for (const [k, d] of Object.entries(GEN.defaults())) clips[k] = new Clip(d);
@@ -94,6 +96,7 @@ function showToast(small, big) { const t = $('toast'); t.innerHTML = '<small>' +
 let story = null;
 const cine = new Cinematics({ camera, terrain, player, resolve: a => story.resolve(a), onStart: () => { inDialogue = true; keys.clear(); document.body.classList.add('cinema'); }, onEnd: () => { inDialogue = false; document.body.classList.remove('cinema'); } });
 story = new Story({ plan: terrain.hf.plan(), terrain, player, npcs, enemies, combat, worldMap, cine, getName: () => charBody?.cfg?.name, toast: showToast });
+houses.bind({ player, combat, camera, toast: showToast });
 if (npcs) npcs.story = story; if (enemies) enemies.onKill = e => story.onKill(e);
 
 // ---------- multiplayer ----------
@@ -158,7 +161,8 @@ addEventListener('keydown', e => {
   if (!keys.has(e.code) && e.code === 'Space') jumpPressed = true;
   keys.add(e.code); ambience.start();
   if (e.code === 'KeyQ') horse.call();
-  if (e.code === 'KeyE') { if (horse.riding || !npcs?.nearest) horse.toggleMount(); else npcs.interact(); }
+  if (e.code === 'KeyE') { if (horse.riding) horse.toggleMount(); else if (npcs?.nearest) npcs.interact(); else if (houses.target) houses.interact(); else horse.toggleMount(); }
+  if (e.code === 'KeyI') houses.toggleInv();
   if (e.code === 'KeyM') { worldMap.bigOpen ? closeMap() : openMap(); }
   if (worldMap.bigOpen) return;
   if (e.code === 'BracketRight') sky.set(sky.hour + 1); if (e.code === 'BracketLeft') sky.set(sky.hour - 1);
@@ -213,7 +217,7 @@ function frame(dt) {
     camera.position.lerp(camPos, 1 - Math.exp(-22 * dt)); lookAt.lerp(focus, 1 - Math.exp(-22 * dt)); camera.lookAt(lookAt);
     const day = Math.max(0, Math.min(1, sky.uniforms.sunDir.value.y * 3 + .3));
     birds.update(dt, gameTime, player.pos, day);
-    npcs?.update(dt); enemies?.update(cine.active ? 0 : dt); story.update(dt); dialogue.tick(dt); animals.update(dt); net.update(dt); if (net.active) worldMap.markers = (worldMap.markers || []).concat(net.markers()); if (horse.near && !npcs?.nearest) dialogue.setPrompt(`E — Montar a ${horse.look.name}`); else if (horse.mounted) dialogue.setPrompt('E — Desmontar');
+    npcs?.update(dt); enemies?.update(cine.active ? 0 : dt); story.update(dt); houses.update(dt); dialogue.tick(dt); animals.update(dt); net.update(dt); if (net.active) worldMap.markers = (worldMap.markers || []).concat(net.markers()); if (horse.near && !npcs?.nearest) dialogue.setPrompt(`E — Montar a ${horse.look.name}`); else if (horse.mounted) dialogue.setPrompt('E — Desmontar'); else if (houses.target && !npcs?.nearest) dialogue.setPrompt('E — ' + houses.target.label);
     if (started) { const rg0 = worldMap.regionAt(player.pos.x, player.pos.z), stt = terrain.hf.plan().settlementAt(player.pos.x, player.pos.z), inTown = stt && stt.d < .95, rg = inTown ? { name: stt.s.name } : rg0; if (rg.name !== lastRegion) { lastRegion = rg.name; const t = $('toast'); t.innerHTML = '<small>' + (inTown ? typeName(stt.s.type) : 'Entrando en') + '</small>' + rg.name; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 4200); } }
     if (player.depth > .1 && player.speed > .25) { fxT -= dt; if (fxT <= 0) { fxT = .22 / (1 + player.speed * .35); const a = Math.random() * 6.283, r = player.swimming ? .5 : .28; fx.ring(player.pos.x + Math.cos(a) * r, player.pos.z + Math.sin(a) * r, 1.0 + Math.min(1, player.depth) * .9, 1.4, .5); } }
     fx.update(dt);
@@ -258,4 +262,4 @@ let last = performance.now(), exited = false;
   const cap = settings.fpsCap; if (cap <= 240 && now - last < 1000 / cap - 1.5) return;      // user fps limit
   frame((now - last) / 1000); last = now;
 })(last);
-window.__game = { story, cine, combat, enemies, net, horse, animals, player, terrain, sky, camera, scene, keys, renderer, birds, ambience, settings, menu, worldMap, npcs, dialogue, applySettings, tick: (dt = 1 / 60) => frame(dt), setCam: (y, p, d) => { camYaw = y; camPitch = p; camDist = d; }, get ratio() { return ratio; }, get paused() { return paused; } };
+window.__game = { houses, story, cine, combat, enemies, net, horse, animals, player, terrain, sky, camera, scene, keys, renderer, birds, ambience, settings, menu, worldMap, npcs, dialogue, applySettings, tick: (dt = 1 / 60) => frame(dt), setCam: (y, p, d) => { camYaw = y; camPitch = p; camDist = d; }, get ratio() { return ratio; }, get paused() { return paused; } };

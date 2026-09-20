@@ -3,6 +3,8 @@
 // Performance: LOD rings for the ground mesh, skirts against cracks, instancing per model, frustum culling, shadows only nearby.
 import * as THREE from 'three';
 import { BLD, BLD_NAMES } from './settlements.js';
+import { getShell, STYLES, SIZES } from './housegen.js';
+const SIZE_KEYS = Object.keys(SIZES);
 import { createHeightField, gridIndices, CHUNK, WATER_LEVEL } from './heightfield.js';
 import { createShoreWaterMaterial, updateShoreWater, mergeWater } from './water.js';
 import { windTime } from './wind.js';
@@ -49,7 +51,7 @@ const fract = v => v - Math.floor(v);
 export class Terrain {
   constructor(scene, seed = 20240519, veg = null) {
     this.scene = scene; this.seed = seed; this.hf = createHeightField(seed); this.veg = veg;
-    this.chunks = new Map(); this.pending = new Map(); this.inflight = 0; this.maxInflight = 3; this.radius = 7; this.stats = { built: 0 };
+    this.homeCol = new Map(); this.houses = null; this.chunks = new Map(); this.pending = new Map(); this.inflight = 0; this.maxInflight = 3; this.radius = 7; this.stats = { built: 0 };
     this.q = { shadowsOn: true, shadowRing: 1.45, grass: true, grassDensity: 1, grassRing: 1.6 }; this.version = 0; this._near = null; this._dirty = true; this._lt = 0;
     this.terrainMat = makeTerrainMaterial(loadGroundTextures());
     this.waterMat = createShoreWaterMaterial(); this.waterParams = mergeWater();
@@ -129,7 +131,7 @@ export class Terrain {
   dropGrass(c) { if (!c.grass) return; c.group.remove(c.grass); for (const m of c.grassMeshes) m.dispose(); c.grass = null; c.grassMeshes = []; }
   disposeVeg(c) { if (c.vegGroup) { c.group.remove(c.vegGroup); for (const m of c.vegMeshes) m.dispose(); } c.vegGroup = null; c.vegMeshes = []; c.casters = []; }
   unload(key) {
-    const c = this.chunks.get(key); if (!c) return; this.scene.remove(c.group); this.disposeVeg(c); this.dropGrass(c);
+    const c = this.chunks.get(key); if (!c) return; this.scene.remove(c.group); this.disposeVeg(c); this.dropGrass(c); for (const hk of c.homeSet || []) { const [hx, hz] = hk.split(',').map(Number); this.houses?.remove(hx, hz); this.homeCol.delete(hk); }
     c.terrain.geometry.dispose(); if (c.water) c.water.geometry.dispose();
     this.chunks.delete(key); this.version++;
   }
@@ -152,7 +154,13 @@ export class Terrain {
     const ox = m.cx * CHUNK, oz = m.cz * CHUNK, trees = [], rocks = [];
     for (let i = 0; i < m.trees.length; i += 7) trees.push({ x: ox + m.trees[i], z: oz + m.trees[i + 1], h: m.trees[i + 2], s: m.trees[i + 3] });
     for (let i = 0; i < m.rocks.length; i += 5) rocks.push({ x: ox + m.rocks[i], z: oz + m.rocks[i + 1], r: m.rocks[i + 3] * 1.15 });
-    for (let i = 0; i < m.bld.length; i += 6) {                                     // buildings collide as oriented boxes fitted to the model bounds
+    for (let i = 0; i < m.bld.length; i += 8) {                                     // buildings collide as oriented boxes fitted to the model bounds
+      if (BLD_NAMES[m.bld[i]] === 'home') {                                          // procedural house: one box per wall piece + a blocker per door
+        const sh = getShell(m.bld[i + 6], STYLES[Math.floor(m.bld[i + 7] / 10)], SIZE_KEYS[m.bld[i + 7] % 10]), th = m.bld[i + 4], c0 = Math.cos(th), s0 = Math.sin(th), bx = ox + m.bld[i + 1], bz = oz + m.bld[i + 2], info = { doorCols: {} };
+        for (const w of sh.colliders) rocks.push({ x: bx + (w.x * c0 + w.z * s0), z: bz + (-w.x * s0 + w.z * c0), r: 0, obb: { hx: w.hx, hz: w.hz, c: c0, s: s0, h: 3 } });
+        for (const d of sh.doors) { const lx = d.ax === 'z' ? (d.u0 + d.u1) / 2 : d.c, lz = d.ax === 'z' ? d.c : (d.u0 + d.u1) / 2, e = { x: bx + (lx * c0 + lz * s0), z: bz + (-lx * s0 + lz * c0), r: 0, open: false, obb: { hx: d.ax === 'z' ? (d.u1 - d.u0) / 2 : .07, hz: d.ax === 'z' ? .07 : (d.u1 - d.u0) / 2, c: c0, s: s0, h: 2.3 } }; rocks.push(e); info.doorCols[d.id] = e; }
+        this.homeCol.set(Math.round(bx) + ',' + Math.round(bz), info); continue;
+      }
       const [proto, target, cr] = BLD[BLD_NAMES[m.bld[i]]]; if (cr <= 0) continue;
       const pr = this.veg?.get(proto), th = m.bld[i + 4], bx = ox + m.bld[i + 1], bz = oz + m.bld[i + 2];
       if (pr) { const sz = pr.box.getSize(new THREE.Vector3()), ct = pr.box.getCenter(new THREE.Vector3()), k = target / Math.max(.01, Math.max(sz.x, sz.z)) * m.bld[i + 5], c0 = Math.cos(th), s0 = Math.sin(th);
@@ -198,16 +206,30 @@ export class Terrain {
       if (!arr.length) continue; const im = new THREE.InstancedMesh(geo, mat, arr.length); arr.forEach((m, k) => im.setMatrixAt(k, m)); im.computeBoundingSphere(); im.receiveShadow = true; g.add(im); c.vegMeshes.push(im); c.casters.push(im);
     }
     // --- buildings (villages, farms, camps)
-    if (veg && D.bld.length) {
-      const bg = new Map(), B6 = D.bld;
-      for (let i = 0; i < B6.length; i += 6) {
-        const key = BLD_NAMES[B6[i]], [proto, target] = BLD[key], pr = veg.get(proto); if (!pr) continue;
-        const size = pr.box.getSize(new THREE.Vector3()), k = target / Math.max(.01, Math.max(size.x, size.z)) * B6[i + 5];
-        q.setFromAxisAngle(up, B6[i + 4]); s.setScalar(k); p.set(B6[i + 1], B6[i + 3] - pr.box.min.y * k - .1, B6[i + 2]); mtx.compose(p, q, s);
-        const v = fract(B6[i + 1] * 12.9 + B6[i + 2] * 7.7); col.setRGB(.88 + v * .2, .88 + fract(v * 7) * .2, .88 + fract(v * 13) * .2);
+    const B8 = D.bld, proxies = []; c.homeSet ??= new Set();
+    if (veg && B8.length) {
+      const bg = new Map();
+      for (let i = 0; i < B8.length; i += 8) {
+        const key = BLD_NAMES[B8[i]];
+        if (key === 'home') {                                                       // procedural houses: full shell up close, cheap proxy far away
+          const bx = c.cx * CHUNK + B8[i + 1], bz = c.cz * CHUNK + B8[i + 2], hk = Math.round(bx) + ',' + Math.round(bz);
+          if (c.tier <= 1 && this.houses) { if (!c.homeSet.has(hk)) { this.houses.create(bx, bz, B8[i + 3], B8[i + 4], B8[i + 6], STYLES[Math.floor(B8[i + 7] / 10)], SIZE_KEYS[B8[i + 7] % 10], this.homeCol.get(hk)); c.homeSet.add(hk); } }
+          else { if (c.homeSet.has(hk)) { this.houses?.remove(bx, bz); c.homeSet.delete(hk); } proxies.push(i); }
+          continue;
+        }
+        const [proto, target] = BLD[key], pr = veg.get(proto); if (!pr) continue;
+        const size = pr.box.getSize(new THREE.Vector3()), k = target / Math.max(.01, Math.max(size.x, size.z)) * B8[i + 5];
+        q.setFromAxisAngle(up, B8[i + 4]); s.setScalar(k); p.set(B8[i + 1], B8[i + 3] - pr.box.min.y * k - .1, B8[i + 2]); mtx.compose(p, q, s);
+        const v = fract(B8[i + 1] * 12.9 + B8[i + 2] * 7.7); col.setRGB(.88 + v * .2, .88 + fract(v * 7) * .2, .88 + fract(v * 13) * .2);
         if (!bg.has(key)) bg.set(key, { pr, list: [] }); bg.get(key).list.push({ matrix: mtx.clone(), color: col.clone() });
       }
       for (const { pr, list } of bg.values()) this.addInstances(c, g, pr, list);
+    }
+    if (proxies.length) {
+      const geo = this.homeProxyGeo ??= merge([{ geo: new THREE.BoxGeometry(1, 2.9, 1), rgb: [.72, .64, .5], pos: [0, 1.45, 0] }, { geo: new THREE.CylinderGeometry(0, .92, 1.7, 4, 1).rotateY(Math.PI / 4), rgb: [.34, .25, .2], pos: [0, 3.75, 0] }]);
+      const mat = this.homeProxyMat ??= new THREE.MeshLambertMaterial({ vertexColors: true }), im = new THREE.InstancedMesh(geo, mat, proxies.length);
+      proxies.forEach((i, k) => { const [W, Dp] = SIZES[SIZE_KEYS[B8[i + 7] % 10]]; q.setFromAxisAngle(up, B8[i + 4]); s.set(W, 1, Dp); p.set(B8[i + 1], B8[i + 3], B8[i + 2]); mtx.compose(p, q, s); im.setMatrixAt(k, mtx); });
+      im.computeBoundingSphere(); im.receiveShadow = true; g.add(im); c.vegMeshes.push(im); c.casters.push(im);
     }
     // --- rocks / boulders
     const R5 = D.rocks, rg = new Map();
@@ -272,7 +294,7 @@ export class Terrain {
     const n = this.nearby(pos.x, pos.z);
     for (const t of n.trees) { const dx = pos.x - t.x, dz = pos.z - t.z, R = radius + .3 * t.s, d2 = dx * dx + dz * dz; if (d2 < R * R) { const d = Math.sqrt(d2) || .001; pos.x = t.x + dx / d * R; pos.z = t.z + dz / d * R; } }
     for (const r of n.rocks) {
-      const dx = pos.x - r.x, dz = pos.z - r.z;
+      if (r.open) continue; const dx = pos.x - r.x, dz = pos.z - r.z;
       if (r.obb) {
         const { hx, hz, c, s } = r.obb, ex = hx + radius, ez = hz + radius, lx = dx * c - dz * s, lz = dx * s + dz * c;
         if (Math.abs(lx) < ex && Math.abs(lz) < ez) { let nx = lx, nz = lz; if (ex - Math.abs(lx) < ez - Math.abs(lz)) nx = Math.sign(lx || 1) * ex; else nz = Math.sign(lz || 1) * ez; pos.x = r.x + nx * c + nz * s; pos.z = r.z - nx * s + nz * c; }

@@ -81,13 +81,16 @@ canvas#c{display:block;width:100vw;height:100vh}
 #journal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:26;width:min(560px,92vw);max-height:78vh;overflow:auto;padding:22px 28px;background:linear-gradient(#211a11,#17120c);border:1px solid #6b5630;box-shadow:0 0 0 4px #17120c,0 0 0 5px #4b3d26,0 20px 60px #000}
 #journal h3{margin:0;letter-spacing:6px;color:#e6c98a;font-weight:normal}#journal h4{margin:4px 0 14px;color:#a89a7c;font-weight:normal;font-style:italic}#journal .cur{color:#ffd76a;font-size:16px}#journal li{color:#c9b88f;margin:6px 0;font-size:14px}#journal ul{padding-left:18px;list-style:none}#journal .tip{color:#8f8161;font:12px/1.5 system-ui,sans-serif}
 body.cinema #hud,body.cinema #minimap,body.cinema #help,body.cinema #hpwrap,body.cinema #objective,body.cinema #mpinfo,body.cinema #chatlog{display:none!important}
+#invbox{position:fixed;right:18px;top:60px;z-index:26;width:260px;max-height:70vh;overflow:auto;padding:14px 16px;background:linear-gradient(#211a11,#17120c);border:1px solid #6b5630;box-shadow:0 0 0 3px #17120c,0 0 0 4px #4b3d26}
+#invbox h3{margin:0 0 8px;letter-spacing:5px;color:#e6c98a;font-weight:normal;font-size:15px}#invbox .it{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #2f2618;font:13px system-ui,sans-serif}#invbox .it span{flex:1}#invbox .it b{color:#e6c98a}#invbox button{background:#3b2e1c;border:1px solid #5b4a2b;color:#f1e6cc;padding:2px 8px;font:12px system-ui;cursor:pointer}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:22;transition:opacity 1.2s}
 #exitscreen{position:fixed;inset:0;background:#0d0a07;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
 #exitscreen h2{font-weight:normal;letter-spacing:4px;color:#e6c98a;margin:0}
 </style></head><body>
 <canvas id="c"></canvas>
 <canvas id="minimap"></canvas>
 <div id="hud">cargando…</div>
-<div id="help">Clic: capturar ratón · WASD mover · Shift correr · C caminar · Espacio saltar · Rueda zoom · <b>E</b> hablar/montar · <b>Q</b> silbar al caballo · <b>R</b> espada · clic atacar (mantener = fuerte) · clic der. bloquear · <b>V</b> esquivar · <b>1-6</b> emotes · <b>M</b> mapa · <b>Esc</b> menú<br>[ ] hora · P pausar tiempo · G IK de pies · H ocultar ayuda</div>
+<div id="help">Clic: capturar ratón · WASD mover · Shift correr · C caminar · Espacio saltar · Rueda zoom · <b>E</b> hablar/montar/usar · <b>I</b> inventario · <b>Q</b> silbar al caballo · <b>R</b> espada · clic atacar (mantener = fuerte) · clic der. bloquear · <b>V</b> esquivar · <b>1-6</b> emotes · <b>M</b> mapa · <b>Esc</b> menú<br>[ ] hora · P pausar tiempo · G IK de pies · H ocultar ayuda</div>
 <div id="bigmapwrap" class="hidden"><div class="top"><h3>MAPA</h3><small>Arrastra: mover · Rueda: zoom · Clic derecho o doble clic: marcar destino · M o Esc: cerrar</small></div><canvas id="bigmap"></canvas></div>
 <div id="title" class="hidden"><h1>OPEN WORLD</h1><p>Bienvenido, <b id="t-name"></b></p><button class="mbtn primary" id="t-play">Jugar</button><button class="mbtn" id="t-char">Crear / editar personaje</button><button class="mbtn" id="t-mp">Multijugador</button><button class="mbtn" id="t-set">Ajustes</button></div>
 <div id="creator" class="hidden"></div>
@@ -98,6 +101,7 @@ body.cinema #hud,body.cinema #minimap,body.cinema #help,body.cinema #hpwrap,body
 <div id="hitflash"></div><div id="deadscr" class="hidden">HAS MUERTO<small>Reapareciendo en el pueblo más cercano…</small></div>
 <div id="hpwrap"><small id="swordstate"></small><div class="bar2"><i id="hp"></i></div><div class="bar2"><i id="st"></i></div></div>
 <div id="cine"></div><div id="cinesub"></div><div id="objective" class="hidden"></div><div id="journal" class="hidden"></div>
+<div id="invbox" class="hidden"></div><div id="fade"></div>
 <div id="toast"></div><div id="prompt" class="hidden"></div><div id="bubbles"></div><div id="dialogue" class="hidden"></div>
 <div id="loading"><h2>OPEN WORLD</h2><p id="loadmsg">Generando el terreno…</p><div class="bar"><i id="loadbar"></i></div></div>
 <script src="lib/peerjs.min.js"></script>
