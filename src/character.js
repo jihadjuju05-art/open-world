@@ -18,13 +18,14 @@ function skirtRig(color) { const g = new THREE.CylinderGeometry(.2, .36, .62, 14
 export const SWORD_HAND = { pos: [-.02, .07, 0], rot: [1.12, 0, 0] };
 export async function loadCharacterAssets() {
   const L = new GLTFLoader(), load = u => L.loadAsync(u);
-  const [base, anims, ranger, peasant, hairSP, hairB, hairL, hairU, beard, brows, anims2, baseF, hairUF, browsF] = await Promise.all([
+  const [base, anims, ranger, peasant, hairSP, hairB, hairL, hairU, beard, brows, anims2, baseF, hairUF, browsF, peasantF, rangerF] = await Promise.all([
     load(D + 'Superhero_Male_FullBody.gltf'), load(D + 'anims/UAL1_Standard.glb'), load(D + 'outfits/Male_Ranger.gltf'), load(D + 'outfits/Male_Peasant.gltf'),
     load(D + 'hair/Hair_SimpleParted.gltf'), load(D + 'hair/Hair_Buns.gltf'), load(D + 'hair/Hair_Long.gltf'), load(D + 'hair/Hair_Buzzed.gltf'), load(D + 'hair/Hair_Beard.gltf'), load(D + 'hair/Eyebrows_Regular.gltf'), load(D + 'anims/UAL2_Standard.glb').catch(() => ({ animations: [] })),
-    load(D + 'Superhero_Female_FullBody.gltf').catch(() => null), load(D + 'hair/Hair_BuzzedFemale.gltf').catch(() => null), load(D + 'hair/Eyebrows_Female.gltf').catch(() => null)
+    load(D + 'Superhero_Female_FullBody.gltf').catch(() => null), load(D + 'hair/Hair_BuzzedFemale.gltf').catch(() => null), load(D + 'hair/Eyebrows_Female.gltf').catch(() => null),
+    load(D + 'outfits/Female_Peasant.gltf').catch(() => null), load(D + 'outfits/Female_Ranger.gltf').catch(() => null)
   ]);
   const have = new Set(anims.animations.map(c => c.name));
-  return { base, clips: [...anims.animations, ...anims2.animations.filter(c => !have.has(c.name))], ranger, peasant, hair: { SimpleParted: hairSP, Buns: hairB, Long: hairL, Buzzed: hairU, BuzzedFemale: hairUF }, beard, brows, baseF, browsF };
+  return { base, clips: [...anims.animations, ...anims2.animations.filter(c => !have.has(c.name))], ranger, peasant, hair: { SimpleParted: hairSP, Buns: hairB, Long: hairL, Buzzed: hairU, BuzzedFemale: hairUF }, beard, brows, baseF, browsF, peasantF, rangerF };
 }
 
 // ---- one-handed sword: blade along local +Y, grip at the origin. userData.base / tip are the hitbox segment ends (local space) ----
@@ -94,7 +95,7 @@ export class GltfBody {
     this.baseRoot.traverse(o => {
       if (o.isSkinnedMesh && /SuperHero_Male|Superhero_Female|Sphere/i.test(o.name)) { if (clothed) this.cropToHead(o); else o.material.color.set(c.tint); }
     });
-    if (clothed) this.addPart(A[c.outfit], 'outfit', n => (!c.hood && /Hood/i.test(n)) || (!c.pauldron && /Pauldron/i.test(n)));
+    if (clothed) this.addPart((fem && A[c.outfit + 'F']) || A[c.outfit], 'outfit', n => (!c.hood && /Hood/i.test(n)) || (!c.pauldron && /Pauldron/i.test(n)));
     if (c.hair && c.hair !== 'none' && A.hair[c.hair]) this.addPart(A.hair[c.hair], 'hair');
     this.addPart(fem && A.browsF ? A.browsF : A.brows, 'brows'); if (c.beard && !fem) this.addPart(A.beard, 'beard');
     // tint clothing (multiplies the texture)

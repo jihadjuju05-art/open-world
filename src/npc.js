@@ -101,7 +101,7 @@ export class NPCManager {
     const tints = ['#b3a17f', '#8f8064', '#a08f70', '#6f7a86', '#8aa090', '#7a5c44', '#5c6b4a', '#9a6a58'], skirts = ['#7a3b3b', '#3b5a7a', '#6b5a3a', '#4a6b4a', '#7a6a3b', '#5a3b6b'];
     const hairs = fem ? ['Long', 'Buns', 'BuzzedFemale', 'SimpleParted'] : ['SimpleParted', 'Buzzed', 'Long', 'Buns'], hairColors = ['#1e1510', '#4a3320', '#7a5230', '#b58a4b', '#8a8a8a'];
     return { name: first + ' ' + surname, role: mem.role, settlement: s, greet: L.greet.map(fill), rumors: L.rumors.map(fill), trade: fill(L.trade), sched: f.sched, scale: child ? .62 + r(2) * .12 : fem ? .92 + r(2) * .05 : .95 + r(2) * .07,
-      look: { outfit: 'peasant', sex: fem ? 'f' : 'm', child, skirt: fem, skirtColor: skirts[Math.floor(r(3) * skirts.length)], hair: hairs[Math.floor(r(4) * hairs.length)], beard: !fem && !child && r(5) < .45, skinTone: .25 + r(6) * .6, hairColor: hairColors[Math.floor(r(7) * 5)], tint: tints[Math.floor(r(8) * tints.length)], hat: !fem && !child && r(9) < .6, hatColor: ['#8a7a4a', '#3b2c1c', '#5a4a34', '#26221e'][Math.floor(r(10) * 4)], rifle: false, holster: false, scarf: !child && r(11) < .3 } };
+      look: { outfit: 'peasant', sex: fem ? 'f' : 'm', child, skirt: false, skirtColor: skirts[Math.floor(r(3) * skirts.length)], hair: hairs[Math.floor(r(4) * hairs.length)], beard: !fem && !child && r(5) < .45, skinTone: .25 + r(6) * .6, hairColor: hairColors[Math.floor(r(7) * 5)], tint: tints[Math.floor(r(8) * tints.length)], hat: !fem && !child && r(9) < .6, hatColor: ['#8a7a4a', '#3b2c1c', '#5a4a34', '#26221e'][Math.floor(r(10) * 4)], rifle: false, holster: false, scarf: !child && r(11) < .3 } };
   }
   sync() {
     this.syncStory(); this.syncFamilies(); const P = this.player.pos;
@@ -197,7 +197,7 @@ export class NPCManager {
 class NPC {
   constructor(mgr, def, x, z) {
     this.mgr = mgr; this.def = def; this.home = { x, z }; this.pos = new THREE.Vector3(x, mgr.terrain.height(x, z), z); this.yaw = Math.random() * 6.283; this.met = 0; this.greeted = false;
-    this.body = new GltfBody(mgr.assets, def.look); this.body.root.scale.setScalar(def.scale || (.9 + Math.random() * .08)); this.sched = def.sched || null; this.where = 'out'; this.hidden = false; if (this.sched) { this.body.setDrawn(false); if (this.body.sword) this.body.sword.visible = false; } mgr.scene.add(this.body.root);
+    this.body = new GltfBody(mgr.assets, def.look); this.body.root.scale.setScalar(def.scale || (.9 + Math.random() * .08)); this.sched = def.sched || null; this.where = 'out'; this.hidden = false; this.body.setDrawn(false); if (this.body.sword) this.body.sword.visible = false; mgr.scene.add(this.body.root);
     this.state = 'idle'; this.timer = 1 + Math.random() * 4; this.target = null; this.speed = 0; this.bubble = null; this.bubbleT = 0; this.headPos = new THREE.Vector3();
   }
   say(text, secs = 3.5) { this.bubble = text; this.bubbleT = secs; }

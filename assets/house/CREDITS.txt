@@ -3,3 +3,4 @@ License: CC BY 4.0 - https://creativecommons.org/licenses/by/4.0/
 Modified: colours baked to vertex colours, meshes merged, doors separated, exterior shell and roof added.
 
 Universal Base Characters (female body) - Quaternius, CC0 - https://quaternius.com
+Modular Character Outfits - Fantasy (Female Peasant/Ranger) - Quaternius, CC0
