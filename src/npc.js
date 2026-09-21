@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GltfBody } from './character.js';
 import { WATER_LEVEL } from './heightfield.js';
 import { typeName } from './settlements.js';
+import { routineStep, makeFamily, HOME_LINES } from './routines.js';
 
 const FIRST = ['Elías', 'Gideon', 'Ezra', 'Caleb', 'Isaac', 'Bruno', 'Hugo', 'Ramón', 'Félix', 'Ignacio', 'Ulises', 'Wyatt', 'Clay', 'Abel', 'Otis', 'Lucas', 'Jonás', 'Mario', 'Dante', 'Casio', 'Emilio', 'Reyes', 'Ciro', 'Bartolo'];
 const LAST = ['Ortega', 'Salas', 'Reyes', 'Vega', 'Cruz', 'Bravo', 'Luna', 'Rojas', 'Castro', 'Prado', 'Mora', 'Ledesma'];
@@ -57,7 +58,7 @@ const STORY_DEFS = {
 export class NPCManager {
   constructor({ scene, terrain, player, assets, sky, worldMap, ui, camera }) {
     Object.assign(this, { scene, terrain, player, assets, sky, worldMap, ui, camera }); this.npcs = []; this.active = null; this.nearest = null;
-    this.plan = terrain.hf.plan(); this.by = new Map(); this.scanT = 0; this.max = 18; this.serial = 0;
+    this.plan = terrain.hf.plan(); this.by = new Map(); this.scanT = 0; this.max = 34; this.serial = 0; this.fams = new Map();
   }
   // NPCs live in settlements: they are created when the player gets close and removed when far away.
   makeDef(s, k) {
@@ -76,10 +77,36 @@ export class NPCManager {
       else if (d > 320 && have) { this.scene.remove(have.body.root); const i = this.npcs.indexOf(have); if (i >= 0) this.npcs.splice(i, 1); if (this.active === have) this.endTalk(); delete this.storyNpcs[k]; }
     }
   }
-  sync() {
-    this.syncStory(); const P = this.player.pos;
+  rolesFor(s) { return ROLE_BY_TYPE[Math.min(s.type, ROLE_BY_TYPE.length - 1)]; }
+  // Households: families that live in the townhouses near the player.
+  syncFamilies() {
+    const P = this.player.pos;
     for (const s of this.plan.settlements) {
-      const d = Math.hypot(s.x - P.x, s.z - P.z), want = [9, 6, 3, 1, 1][s.type], list = this.by.get(s.id);
+      if (s.type > 2 || Math.hypot(s.x - P.x, s.z - P.z) > 300) continue;
+      const homes = s.items.filter(o => o.t === 'home' && o.hp?.size === 'town').map(o => ({ o, d: Math.hypot(o.x - P.x, o.z - P.z) })).sort((a, b) => a.d - b.d);
+      for (const { o, d } of homes) {
+        const key = Math.round(o.x) + ',' + Math.round(o.z), have = this.fams.get(key);
+        if (have && d > 170) { for (const n of have) { this.scene.remove(n.body.root); const i = this.npcs.indexOf(n); if (i >= 0) this.npcs.splice(i, 1); if (this.active === n) this.endTalk(); } this.fams.delete(key); }
+        else if (!have && d < 95) {
+          const fam = makeFamily(this, s, o, 0); if (this.npcs.length + fam.length > this.max) break;
+          const made = []; this.fams.set(key, made);
+          for (const f of fam) { const n = new NPC(this, this.familyDef(s, f), o.x, o.z); made.push(n); this.npcs.push(n); const d0 = ['sleep', 'kitchen', 'eat', 'living'].includes(require0(n, this.sky.hour)) ? 'in' : 'out'; n.where = d0; if (d0 === 'out') { const a = f.sched.work; n.pos.set(a.x, this.terrain.height(a.x, a.z), a.z); } }
+        }
+      }
+    }
+  }
+  familyDef(s, f) {
+    const { mem, sSeed, first, surname } = f, r = k => hh(sSeed, k), fem = mem.sex === 'f', child = mem.kind === 'child';
+    const L = HOME_LINES[mem.role] || LINES[mem.role] || LINES.viajero, fill = t => t.replace(/\{town\}/g, s.name);
+    const tints = ['#b3a17f', '#8f8064', '#a08f70', '#6f7a86', '#8aa090', '#7a5c44', '#5c6b4a', '#9a6a58'], skirts = ['#7a3b3b', '#3b5a7a', '#6b5a3a', '#4a6b4a', '#7a6a3b', '#5a3b6b'];
+    const hairs = fem ? ['Long', 'Buns', 'BuzzedFemale', 'SimpleParted'] : ['SimpleParted', 'Buzzed', 'Long', 'Buns'], hairColors = ['#1e1510', '#4a3320', '#7a5230', '#b58a4b', '#8a8a8a'];
+    return { name: first + ' ' + surname, role: mem.role, settlement: s, greet: L.greet.map(fill), rumors: L.rumors.map(fill), trade: fill(L.trade), sched: f.sched, scale: child ? .62 + r(2) * .12 : fem ? .92 + r(2) * .05 : .95 + r(2) * .07,
+      look: { outfit: 'peasant', sex: fem ? 'f' : 'm', child, skirt: fem, skirtColor: skirts[Math.floor(r(3) * skirts.length)], hair: hairs[Math.floor(r(4) * hairs.length)], beard: !fem && !child && r(5) < .45, skinTone: .25 + r(6) * .6, hairColor: hairColors[Math.floor(r(7) * 5)], tint: tints[Math.floor(r(8) * tints.length)], hat: !fem && !child && r(9) < .6, hatColor: ['#8a7a4a', '#3b2c1c', '#5a4a34', '#26221e'][Math.floor(r(10) * 4)], rifle: false, holster: false, scarf: !child && r(11) < .3 } };
+  }
+  sync() {
+    this.syncStory(); this.syncFamilies(); const P = this.player.pos;
+    for (const s of this.plan.settlements) {
+      const d = Math.hypot(s.x - P.x, s.z - P.z), want = [3, 2, 1, 1, 1][s.type], list = this.by.get(s.id);
       if (d < 210 && !list && this.npcs.length + want <= this.max) {
         const made = []; this.by.set(s.id, made); const A = [Math.cos(s.axis), Math.sin(s.axis)];
         for (let k = 0; k < want; k++) {
@@ -119,10 +146,10 @@ export class NPCManager {
   update(dt) {
     if ((this.scanT -= dt) <= 0) { this.scanT = 1; this.sync(); }
     const hour = this.sky.hour; let best = null, bd = 3.2;
-    for (const n of this.npcs) { n.update(dt, hour); const d = dist(n.pos, this.player.pos); if (d < bd && !this.active) { best = n; bd = d; } }
+    for (const n of this.npcs) { n.update(dt, hour); const d = dist(n.pos, this.player.pos); if (d < bd && !this.active && !n.hidden && !n.asleep) { best = n; bd = d; } }
     this.nearest = best; this.ui.setPrompt(best && !this.active ? `E — Hablar con ${best.def.name} (${best.def.role})` : null);
     this.ui.updateBubbles(this.npcs, this.camera);
-    this.worldMap.markers = this.npcs.map(n => ({ x: n.pos.x, z: n.pos.z, label: n.def.name, color: '#ffd166' }));
+    this.worldMap.markers = this.npcs.filter(n => !n.hidden && !n.def.sched).map(n => ({ x: n.pos.x, z: n.pos.z, label: n.def.name, color: '#ffd166' }));
   }
   interact() { if (this.nearest && !this.active) this.startTalk(this.nearest); }
   startTalk(npc) { this.active = npc; npc.state = 'talk'; npc.met++; this.ui.openDialogue(npc, this); }
@@ -170,16 +197,16 @@ export class NPCManager {
 class NPC {
   constructor(mgr, def, x, z) {
     this.mgr = mgr; this.def = def; this.home = { x, z }; this.pos = new THREE.Vector3(x, mgr.terrain.height(x, z), z); this.yaw = Math.random() * 6.283; this.met = 0; this.greeted = false;
-    this.body = new GltfBody(mgr.assets, def.look); this.body.root.scale.setScalar(.9 + Math.random() * .08); mgr.scene.add(this.body.root);
+    this.body = new GltfBody(mgr.assets, def.look); this.body.root.scale.setScalar(def.scale || (.9 + Math.random() * .08)); this.sched = def.sched || null; this.where = 'out'; this.hidden = false; if (this.sched) { this.body.setDrawn(false); if (this.body.sword) this.body.sword.visible = false; } mgr.scene.add(this.body.root);
     this.state = 'idle'; this.timer = 1 + Math.random() * 4; this.target = null; this.speed = 0; this.bubble = null; this.bubbleT = 0; this.headPos = new THREE.Vector3();
   }
   say(text, secs = 3.5) { this.bubble = text; this.bubbleT = secs; }
   update(dt, hour) {
     const m = this.mgr, P = m.player.pos, d = dist(this.pos, P), night = hour > 21.5 || hour < 5;
-    this.body.root.visible = d < 260; if (d >= 260) return;
+    this.body.root.visible = !this.hidden && d < 260; if (d >= 260) return;
     this.bubbleT -= dt; if (this.bubbleT <= 0) this.bubble = null;
     // reactions
-    if (this.state !== 'talk') {
+    if (this.state !== 'talk' && !this.hidden && !this.asleep) {
       if (d < 8 && !this.greeted && !night) { this.greeted = true; this.say(this.def.greet[Math.floor(Math.random() * this.def.greet.length)]); this.face = 2.5; }
       if (d > 25) this.greeted = false;
       if (d < 3 && m.player.speed > 4.5 && !this.startled) { this.startled = true; this.say(['¡Cuidado!', '¡Eh, mira por dónde vas!', '¡Vaya prisa!'][Math.floor(Math.random() * 3)], 2.5); }
@@ -190,7 +217,8 @@ class NPC {
     else {
       this.timer -= dt; this.face = (this.face || 0) - dt;
       if (this.face > 0 && d < 10) this.turnTo(P.x - this.pos.x, P.z - this.pos.z, dt, 5);
-      if (this.state === 'idle') {
+      if (this.sched) { const r = routineStep(this, dt, hour, d); anim = r.anim; rate = r.rate || 1; this.body.root.visible = !this.hidden && d < 260; }
+      else if (this.state === 'idle') {
         if (this.timer <= 0) {
           if (night) { this.state = 'idle'; this.timer = 8; }          // asleep-ish at night: stays home
           else { const a = Math.random() * 6.283, r = this.def.fixed ? 1 + Math.random() * 2.5 : 6 + Math.random() * 22, tx = this.home.x + Math.cos(a) * r, tz = this.home.z + Math.sin(a) * r; if (m.validSpot(tx, tz)) { this.target = { x: tx, z: tz }; this.state = 'walk'; } else this.timer = 1; }
@@ -205,10 +233,13 @@ class NPC {
           else { const ox = this.pos.x, oz = this.pos.z; this.pos.x = nx; this.pos.z = nz; m.terrain.pushOut(this.pos, .45); if (Math.hypot(this.pos.x - ox, this.pos.z - oz) < want * dt * .3) { this.stuck = (this.stuck || 0) + dt; if (this.stuck > 1.2) { this.state = 'idle'; this.timer = .5; this.target = null; this.stuck = 0; } } else this.stuck = 0; } }
       }
     }
-    this.pos.y = m.terrain.height(this.pos.x, this.pos.z);
-    this.body.play(anim, .3, rate); if (d < 120 || (m.frame = (m.frame || 0) + 1) % 3 === 0) this.body.update(dt * (d < 120 ? 1 : 3));
+    if (!this.sched) this.pos.y = m.terrain.height(this.pos.x, this.pos.z); else if (this.where !== 'in') this.pos.y = m.terrain.walkY(this.pos.x, this.pos.z, this.pos.y);
+    if (anim) this.body.play(anim, .3, rate); if (d < 120 || (m.frame = (m.frame || 0) + 1) % 3 === 0) this.body.update(dt * (d < 120 ? 1 : 3));
     const r = this.body.root; r.position.copy(this.pos); r.rotation.y = this.yaw;
     this.headPos.set(this.pos.x, this.pos.y + 2.05, this.pos.z);
   }
   turnTo(dx, dz, dt, speed) { const t = Math.atan2(dx, dz); let a = t - this.yaw; a = ((a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; this.yaw += a * Math.min(1, dt * speed); }
 }
+
+import { desire as require0f } from './routines.js';
+function require0(n, h) { return require0f(n, h).k; }

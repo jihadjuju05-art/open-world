@@ -21,7 +21,7 @@ class MB {                                     // merged geometry per material k
   }
 }
 
-let TOWN_DATA = null; export const setTownData = d => { TOWN_DATA = d; };
+let TOWN_DATA = null; export const setTownData = d => { TOWN_DATA = d; }; export const getTownData = () => TOWN_DATA;
 const SHELLS = new Map();
 export function getShell(seed, style, sizeKey) { const k = seed + '|' + style + '|' + sizeKey; let s = SHELLS.get(k); if (!s) SHELLS.set(k, s = buildShell(planHouse(seed, style, sizeKey))); return s; }
 // Builds the shell of every level: returns { parts:[{key,geo}], colliders:[{x,z,hx,hz,y0,y1}], doors:[...], stair, plan }.

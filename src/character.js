@@ -13,15 +13,18 @@ export const DEFAULT_CHAR = {
   rateDiv: { walk: .98, jog: 5.36, run: 8.25, swim: 2.18 },
 };
 
+// Long bell skirt hung from the pelvis (women's clothing; the peasant tunic provides the top).
+function skirtRig(color) { const g = new THREE.CylinderGeometry(.2, .36, .62, 14, 1, true), m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: .9, side: THREE.DoubleSide })); m.position.y = -.33; m.castShadow = true; const o = new THREE.Group(); o.add(m); return o; }
 export const SWORD_HAND = { pos: [-.02, .07, 0], rot: [1.12, 0, 0] };
 export async function loadCharacterAssets() {
   const L = new GLTFLoader(), load = u => L.loadAsync(u);
-  const [base, anims, ranger, peasant, hairSP, hairB, hairL, hairU, beard, brows, anims2] = await Promise.all([
+  const [base, anims, ranger, peasant, hairSP, hairB, hairL, hairU, beard, brows, anims2, baseF, hairUF, browsF] = await Promise.all([
     load(D + 'Superhero_Male_FullBody.gltf'), load(D + 'anims/UAL1_Standard.glb'), load(D + 'outfits/Male_Ranger.gltf'), load(D + 'outfits/Male_Peasant.gltf'),
-    load(D + 'hair/Hair_SimpleParted.gltf'), load(D + 'hair/Hair_Buns.gltf'), load(D + 'hair/Hair_Long.gltf'), load(D + 'hair/Hair_Buzzed.gltf'), load(D + 'hair/Hair_Beard.gltf'), load(D + 'hair/Eyebrows_Regular.gltf'), load(D + 'anims/UAL2_Standard.glb').catch(() => ({ animations: [] }))
+    load(D + 'hair/Hair_SimpleParted.gltf'), load(D + 'hair/Hair_Buns.gltf'), load(D + 'hair/Hair_Long.gltf'), load(D + 'hair/Hair_Buzzed.gltf'), load(D + 'hair/Hair_Beard.gltf'), load(D + 'hair/Eyebrows_Regular.gltf'), load(D + 'anims/UAL2_Standard.glb').catch(() => ({ animations: [] })),
+    load(D + 'Superhero_Female_FullBody.gltf').catch(() => null), load(D + 'hair/Hair_BuzzedFemale.gltf').catch(() => null), load(D + 'hair/Eyebrows_Female.gltf').catch(() => null)
   ]);
   const have = new Set(anims.animations.map(c => c.name));
-  return { base, clips: [...anims.animations, ...anims2.animations.filter(c => !have.has(c.name))], ranger, peasant, hair: { SimpleParted: hairSP, Buns: hairB, Long: hairL, Buzzed: hairU }, beard, brows };
+  return { base, clips: [...anims.animations, ...anims2.animations.filter(c => !have.has(c.name))], ranger, peasant, hair: { SimpleParted: hairSP, Buns: hairB, Long: hairL, Buzzed: hairU, BuzzedFemale: hairUF }, beard, brows, baseF, browsF };
 }
 
 // ---- one-handed sword: blade along local +Y, grip at the origin. userData.base / tip are the hitbox segment ends (local space) ----
@@ -86,13 +89,14 @@ export class GltfBody {
     const c = this.cfg, A = this.assets;
     const clothed = c.outfit !== 'none';
     // base body: hidden clothes region is covered by the outfit, so the base mesh stays for head/neck/hands
-    this.baseRoot = this.addPart(A.base, 'base');
+    const fem = c.sex === 'f' && A.baseF;
+    this.baseRoot = this.addPart(fem ? A.baseF : A.base, 'base');
     this.baseRoot.traverse(o => {
-      if (o.isSkinnedMesh && /SuperHero_Male|Sphere/i.test(o.name)) { if (clothed) this.cropToHead(o); else o.material.color.set(c.tint); }
+      if (o.isSkinnedMesh && /SuperHero_Male|Superhero_Female|Sphere/i.test(o.name)) { if (clothed) this.cropToHead(o); else o.material.color.set(c.tint); }
     });
     if (clothed) this.addPart(A[c.outfit], 'outfit', n => (!c.hood && /Hood/i.test(n)) || (!c.pauldron && /Pauldron/i.test(n)));
     if (c.hair && c.hair !== 'none' && A.hair[c.hair]) this.addPart(A.hair[c.hair], 'hair');
-    this.addPart(A.brows, 'brows'); if (c.beard) this.addPart(A.beard, 'beard');
+    this.addPart(fem && A.browsF ? A.browsF : A.brows, 'brows'); if (c.beard && !fem) this.addPart(A.beard, 'beard');
     // tint clothing (multiplies the texture)
     this.parts.find(p => p.name === 'outfit')?.traverse(o => { if (o.isMesh && o.material && /Ranger|Peasant/i.test(o.material.name || '')) o.material.color.set(c.tint); });
     // bones (from the base skeleton) for accessories / IK
@@ -100,6 +104,8 @@ export class GltfBody {
     this.bones = {}; this.baseRoot.traverse(o => { if (o.isBone) this.bones[o.name] = o; });
     this.partBones = this.parts.map(p => { const m = {}; p.traverse(o => { if (o.isBone) m[o.name] = o; }); return m; });
     const attach = (bone, obj, pos, rot = [0, 0, 0], s = 1) => { const b = this.bones[bone]; if (!b) return; obj.position.set(...pos); obj.rotation.set(...rot); obj.scale.setScalar(s); b.add(obj); this.acc.push(obj); };
+    if (c.skirt) attach('pelvis', skirtRig(c.skirtColor || '#6b4a3a'), [0, -.02, 0]);
+    if (c.child) for (const m of [this.baseRoot, ...this.parts.slice(1)]) m.traverse(o => { if (o.isBone && /^(Head|neck_01)$/.test(o.name)) o.scale.setScalar(o.name === 'Head' ? 1.22 : 1.08); });
     if (c.hat) attach('Head', hatMesh(c.hatColor), [0, .13, .012], [-.08, 0, 0]);
     if (c.scarf) attach('neck_01', scarfRig(c.scarfColor), [0, .04, .01]);
     attach('pelvis', beltRig(), [0, .1, 0]);
@@ -113,7 +119,7 @@ export class GltfBody {
     const c = this.cfg, t = Math.max(0, Math.min(1, c.skinTone ?? .5)), k = .55 + t * .85, skin = new THREE.Color(k * 1.02, k * .93, k * .85);
     for (const p of this.parts) p.traverse(o => {
       if (!o.isMesh || !o.material) return; const n = o.material.name || '';
-      if (/Superhero|Regular_Male/i.test(n)) o.material.color.copy(skin);
+      if (/Superhero|Regular_(Male|Female)/i.test(n)) o.material.color.copy(skin);
       else if (/Hair/i.test(n)) o.material.color.set(c.hairColor || '#4a3320');
     });
   }
@@ -146,8 +152,15 @@ export class GltfBody {
   endAction() { if (!this.action) return; this.action = null; this.cur = null; for (const m of this.mixers) { if (m._cur) m._cur.setLoop(THREE.LoopRepeat, Infinity); m._cur && (m._cur.clampWhenFinished = false); } }
   actionProgress() { const a = this.mixers[0]?._cur, c = a?.getClip(); return c && c.duration ? a.time / c.duration : 0; }
   clip(name) { return this.clipMap[name]; }
+  // Holds one frame of a clip (used for sleeping NPCs).
+  freezePose(name, t = .05) {
+    const clip = this.clipMap[name]; if (!clip || (this.frozen === name)) return;
+    for (const m of this.mixers) { const a = m.clipAction(clip); a.reset(); a.enabled = true; a.setEffectiveWeight(1); a.play(); a.time = t; a.paused = true; if (m._cur && m._cur !== a) { m._cur.stop(); } m._cur = a; m.update(0); }
+    this.cur = name; this.frozen = name;
+  }
   play(name, fade = .2, rate = 1) {
     const clip = this.clipMap[name]; if (!clip) return; this.rate = rate;
+    if (this.frozen) { this.frozen = null; for (const m of this.mixers) if (m._cur) { m._cur.paused = false; m._cur.stop(); m._cur = null; } this.cur = null; fade = 0; }
     if (this.cur === name) { for (const m of this.mixers) m.timeScale = rate; return; }
     for (const m of this.mixers) {
       const next = m.clipAction(clip); next.reset(); next.enabled = true; next.setEffectiveWeight(1); next.setEffectiveTimeScale(1);

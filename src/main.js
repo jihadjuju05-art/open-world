@@ -99,7 +99,7 @@ let story = null;
 const cine = new Cinematics({ camera, terrain, player, resolve: a => story.resolve(a), onStart: () => { inDialogue = true; keys.clear(); document.body.classList.add('cinema'); }, onEnd: () => { inDialogue = false; document.body.classList.remove('cinema'); } });
 story = new Story({ plan: terrain.hf.plan(), terrain, player, npcs, enemies, combat, worldMap, cine, getName: () => charBody?.cfg?.name, toast: showToast });
 houses.bind({ player, combat, camera, toast: showToast });
-if (npcs) npcs.story = story; if (enemies) enemies.onKill = e => story.onKill(e);
+if (npcs) { npcs.story = story; npcs.houses = houses; } if (enemies) enemies.onKill = e => story.onKill(e);
 
 // ---------- multiplayer ----------
 const chatin = $('chatin'), chatlog = $('chatlog');
