@@ -3,7 +3,8 @@
 // Performance: LOD rings for the ground mesh, skirts against cracks, instancing per model, frustum culling, shadows only nearby.
 import * as THREE from 'three';
 import { BLD, BLD_NAMES } from './settlements.js';
-import { getShell, STYLES, SIZES } from './housegen.js';
+import { getShell, STYLES, SIZES, FLOOR2_Y } from './housegen.js';
+import { FLOOR_Y, TOWN } from './housedata.js';
 const SIZE_KEYS = Object.keys(SIZES);
 import { createHeightField, gridIndices, CHUNK, WATER_LEVEL } from './heightfield.js';
 import { createShoreWaterMaterial, updateShoreWater, mergeWater } from './water.js';
@@ -154,11 +155,13 @@ export class Terrain {
     const ox = m.cx * CHUNK, oz = m.cz * CHUNK, trees = [], rocks = [];
     for (let i = 0; i < m.trees.length; i += 7) trees.push({ x: ox + m.trees[i], z: oz + m.trees[i + 1], h: m.trees[i + 2], s: m.trees[i + 3] });
     for (let i = 0; i < m.rocks.length; i += 5) rocks.push({ x: ox + m.rocks[i], z: oz + m.rocks[i + 1], r: m.rocks[i + 3] * 1.15 });
-    for (let i = 0; i < m.bld.length; i += 8) {                                     // buildings collide as oriented boxes fitted to the model bounds
+    const homes = []; for (let i = 0; i < m.bld.length; i += 8) {                                     // buildings collide as oriented boxes fitted to the model bounds
       if (BLD_NAMES[m.bld[i]] === 'home') {                                          // procedural house: one box per wall piece + a blocker per door
         const sh = getShell(m.bld[i + 6], STYLES[Math.floor(m.bld[i + 7] / 10)], SIZE_KEYS[m.bld[i + 7] % 10]), th = m.bld[i + 4], c0 = Math.cos(th), s0 = Math.sin(th), bx = ox + m.bld[i + 1], bz = oz + m.bld[i + 2], info = { doorCols: {} };
-        for (const w of sh.colliders) rocks.push({ x: bx + (w.x * c0 + w.z * s0), z: bz + (-w.x * s0 + w.z * c0), r: 0, obb: { hx: w.hx, hz: w.hz, c: c0, s: s0, h: 3 } });
-        for (const d of sh.doors) { const lx = d.ax === 'z' ? (d.u0 + d.u1) / 2 : d.c, lz = d.ax === 'z' ? d.c : (d.u0 + d.u1) / 2, e = { x: bx + (lx * c0 + lz * s0), z: bz + (-lx * s0 + lz * c0), r: 0, open: false, obb: { hx: d.ax === 'z' ? (d.u1 - d.u0) / 2 : .07, hz: d.ax === 'z' ? .07 : (d.u1 - d.u0) / 2, c: c0, s: s0, h: 2.3 } }; rocks.push(e); info.doorCols[d.id] = e; }
+        const hy = m.bld[i + 3]; homes.push({ x: bx, z: bz, c: c0, s: s0, y: hy, plan: sh.plan, town: sh.town });
+        for (const w of sh.colliders) rocks.push({ x: bx + (w.x * c0 + w.z * s0), z: bz + (-w.x * s0 + w.z * c0), r: 0, obb: { hx: w.hx, hz: w.hz, c: c0, s: s0, h: 3, y0: hy + w.y0, y1: hy + w.y1 } });
+        for (const d of sh.doors) { const lx = d.ax === 'z' ? (d.u0 + d.u1) / 2 : d.c, lz = d.ax === 'z' ? d.c : (d.u0 + d.u1) / 2, e = { x: bx + (lx * c0 + lz * s0), z: bz + (-lx * s0 + lz * c0), r: 0, open: false, obb: { hx: d.ax === 'z' ? (d.u1 - d.u0) / 2 : .07, hz: d.ax === 'z' ? .07 : (d.u1 - d.u0) / 2, c: c0, s: s0, h: 2.3, y0: hy + d.y0, y1: hy + d.y1 } }; rocks.push(e); info.doorCols[d.id] = e; }
+        if (sh.town) for (const d of sh.town.doors) { const e = { x: bx + (d.cx * c0 + d.cz * s0), z: bz + (-d.cx * s0 + d.cz * c0), r: 0, open: false, obb: { hx: d.hx, hz: d.hz, c: c0, s: s0, h: 2, y0: hy + d.y0, y1: hy + d.y1 } }; rocks.push(e); info.doorCols[100 + d.id] = e; }
         this.homeCol.set(Math.round(bx) + ',' + Math.round(bz), info); continue;
       }
       const [proto, target, cr] = BLD[BLD_NAMES[m.bld[i]]]; if (cr <= 0) continue;
@@ -167,7 +170,7 @@ export class Terrain {
         rocks.push({ x: bx + (ct.x * c0 + ct.z * s0) * k, z: bz + (-ct.x * s0 + ct.z * c0) * k, r: 0, obb: { hx: sz.x * k * .46, hz: sz.z * k * .46, c: c0, s: s0, h: sz.y * k } }); }
       else rocks.push({ x: bx, z: bz, r: cr, building: true });
     }
-    const c = { cx: m.cx, cz: m.cz, res: m.res, group, terrain, grass: null, grassMeshes: [], shadow: false, d2: d, water: null, trees, rocks, data: { trees: m.trees, rocks: m.rocks, plants: m.plants, bld: m.bld },
+    const c = { cx: m.cx, cz: m.cz, res: m.res, group, terrain, grass: null, grassMeshes: [], shadow: false, d2: d, water: null, trees, rocks, homes, data: { trees: m.trees, rocks: m.rocks, plants: m.plants, bld: m.bld },
       vegGroup: null, vegMeshes: [], casters: [], tier: this.tierFor(d, -1), plantsOn: d <= 1.7 };
     if (m.water) {
       const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.BufferAttribute(m.water.pos, 3)); wg.setAttribute('aDepth', new THREE.BufferAttribute(m.water.depth, 1)); wg.setAttribute('aFlow', new THREE.BufferAttribute(m.water.flow, 3));
@@ -296,6 +299,7 @@ export class Terrain {
     for (const r of n.rocks) {
       if (r.open) continue; const dx = pos.x - r.x, dz = pos.z - r.z;
       if (r.obb) {
+        if (r.obb.y1 !== undefined && pos.y !== undefined && (pos.y > r.obb.y1 || pos.y + 1.7 < r.obb.y0)) continue;                  // other storey
         const { hx, hz, c, s } = r.obb, ex = hx + radius, ez = hz + radius, lx = dx * c - dz * s, lz = dx * s + dz * c;
         if (Math.abs(lx) < ex && Math.abs(lz) < ez) { let nx = lx, nz = lz; if (ex - Math.abs(lx) < ez - Math.abs(lz)) nx = Math.sign(lx || 1) * ex; else nz = Math.sign(lz || 1) * ez; pos.x = r.x + nx * c + nz * s; pos.z = r.z - nx * s + nz * c; }
         continue;
@@ -311,8 +315,31 @@ export class Terrain {
     }
     return false;
   }
+  // Walkable surface height: terrain, or the floors / staircase / porch of the houses (y = current height, to tell storeys apart).
+  nearHomes(x, z) {
+    const cx = Math.floor(x / CHUNK), cz = Math.floor(z / CHUNK), n = this._nh; if (n && n.cx === cx && n.cz === cz && n.ver === this.version) return n.val;
+    const out = []; for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) { const c = this.chunks.get((cx + dx) + ',' + (cz + dz)); if (c?.homes) for (const h of c.homes) out.push(h); }
+    this._nh = { cx, cz, ver: this.version, val: out }; return out;
+  }
+  walkY(x, z, y) {
+    const h = this.height(x, z), list = this.nearHomes(x, z); if (!list.length) return h;
+    for (const H of list) {
+      const dx = x - H.x, dz = z - H.z; if (dx * dx + dz * dz > 400) continue; const lx = dx * H.c - dz * H.s, lz = dx * H.s + dz * H.c, pl = H.plan, hw = pl.W / 2 + .11, hd = pl.D / 2 + .11;
+      if (Math.abs(lx) < hw && Math.abs(lz) < hd) {
+        if (pl.custom) {                                                            // townhouse: stairs are a stack of steps from the model
+          const T = H.town; let best = -1; if (T) for (const st of T.stairs) if (lx > st.x0 && lx < st.x1 && lz > st.z0 && lz < st.z1) { const t = H.y + st.top; if (t <= y + .45 && t >= y - .5 && t > best) best = t; }
+          if (best > 0) return best; return y > H.y + TOWN.F1 + 1.4 ? H.y + TOWN.F2 : H.y + TOWN.F1;
+        }
+        const f1 = H.y + FLOOR_Y, S = pl.stair;
+        if (S) { const f2 = H.y + FLOOR2_Y; if (lx > S.x0 && lx < S.x1 && lz > S.z0 && lz < S.z1) { const t = Math.max(0, Math.min(1, S.axis === 'z' ? (S.z1 - lz) / (S.z1 - S.z0) : (S.x1 - lx) / (S.x1 - S.x0))); return f1 + t * (f2 - f1); } if (y > f1 + 1.4) return f2; }
+        return f1;
+      }
+      if (lx > pl.fx - 1.6 && lx < pl.fx + 1.6 && lz >= hd - .2 && lz < pl.D / 2 + 1.5) return Math.max(h, H.y + FLOOR_Y * .8);            // porch
+    }
+    return h;
+  }
   insideBuilding(p, n) {
-    for (const r of n.rocks) { if (!r.obb) continue; const dx = p.x - r.x, dz = p.z - r.z, { hx, hz, c, s, h } = r.obb, lx = dx * c - dz * s, lz = dx * s + dz * c; if (Math.abs(lx) < hx + .3 && Math.abs(lz) < hz + .3 && p.y < this.height(r.x, r.z) + h + .3) return true; }
+    for (const r of n.rocks) { if (!r.obb) continue; const dx = p.x - r.x, dz = p.z - r.z, { hx, hz, c, s, h } = r.obb, lx = dx * c - dz * s, lz = dx * s + dz * c; if (Math.abs(lx) < hx + .3 && Math.abs(lz) < hz + .3 && (r.obb.y1 !== undefined ? (p.y > r.obb.y0 - .3 && p.y < r.obb.y1 + .3) : p.y < this.height(r.x, r.z) + h + .3)) return true; }
     return false;
   }
   clearFraction(from, to) {

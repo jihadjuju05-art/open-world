@@ -1,7 +1,7 @@
 // Geometry side of the procedural houses: walls with door / window openings, floors, ceilings, roofs, colliders and the furniture plan.
 import * as THREE from 'three';
-import { SIZES, STYLES, WALL_H, T, FLOOR_Y, DOOR_W, DOOR_H, WIN_W, WIN_Y0, WIN_Y1, WALL_HEIGHT, rnd, planHouse } from './housedata.js';
-export { SIZES, STYLES, WALL_HEIGHT, planHouse };
+import { TOWN, SIZES, STYLES, WALL_H, T, FLOOR_Y, DOOR_W, DOOR_H, WIN_W, WIN_Y0, WIN_Y1, WALL_HEIGHT, WALL2_H, FLOOR2_Y, STAIR_W, STAIR_L, rnd, planHouse } from './housedata.js';
+export { TOWN, SIZES, STYLES, WALL_HEIGHT, planHouse, FLOOR2_Y, WALL2_H };
 
 const trim = 'trim';
 // ---------------------------------------------------------------- geometry
@@ -21,46 +21,79 @@ class MB {                                     // merged geometry per material k
   }
 }
 
+let TOWN_DATA = null; export const setTownData = d => { TOWN_DATA = d; };
 const SHELLS = new Map();
 export function getShell(seed, style, sizeKey) { const k = seed + '|' + style + '|' + sizeKey; let s = SHELLS.get(k); if (!s) SHELLS.set(k, s = buildShell(planHouse(seed, style, sizeKey))); return s; }
-// Builds the shell: returns { parts:[{key,geo}], colliders:[{x,z,hx,hz}], doors:[{...}], plan, glass:[...] }.
+// Builds the shell of every level: returns { parts:[{key,geo}], colliders:[{x,z,hx,hz,y0,y1}], doors:[...], stair, plan }.
 export function buildShell(plan) {
   const { W, D, style, seed } = plan, hx = W / 2, hz = D / 2, mb = new MB(), colliders = [], doorList = [];
   const ext = 'ext', wall = 'wall', floor = 'floor';
-  const openings = w => {                                      // openings of one wall, as [u0,u1,y0,y1,kind]
-    const list = []; for (const d of plan.doors) if (d.ax === w.ax && Math.abs(d.c - w.c) < .05 && d.at > w.a && d.at < w.b) list.push([d.at - d.w / 2, d.at + d.w / 2, FLOOR_Y, FLOOR_Y + DOOR_H, 'door', d]);
-    for (const o of plan.wins) if (o.ax === w.ax && Math.abs(o.c - w.c) < .05 && o.at > w.a && o.at < w.b) list.push([o.at - o.w / 2, o.at + o.w / 2, WIN_Y0, WIN_Y1, 'win', o]); return list.sort((p, q) => p[0] - q[0]);
-  };
-  const wallBox = (x0, y0, z0, x1, y1, z1, isExt, ax, outSign) => {                       // one solid piece of wall; exterior side gets the exterior material
-    mb.box(x0, y0, z0, x1, y1, z1, face => { if (face === 'py') return trim; if (face === 'ny') return wall; const n = { px: [1, 0], nx: [-1, 0], pz: [0, 1], nz: [0, -1] }[face]; if (!n) return wall; return isExt && ((n[0] * outSign[0] + n[1] * outSign[1]) > 0) ? ext : wall; }, style === 'modern' ? 3 : 2);
-  };
-  for (const w of plan.walls) {
-    const ops = openings(w), isExt = !!w.ext; const outSign = w.ax === 'z' ? [0, Math.sign(w.c) || 1] : [Math.sign(w.c) || 1, 0], a = w.a - (w.ext ? T / 2 : 0), b = w.b + (w.ext ? T / 2 : 0);
-    let cur = a; const seg = (u0, u1, y0, y1) => { if (u1 - u0 < .01 || y1 - y0 < .01) return; if (w.ax === 'z') wallBox(u0, y0, w.c - T / 2, u1, y1, w.c + T / 2, isExt, 'z', outSign); else wallBox(w.c - T / 2, y0, u0, w.c + T / 2, y1, u1, isExt, 'x', outSign); };
-    for (const [u0, u1, y0, y1, kind, ref] of ops) { seg(cur, u0, FLOOR_Y, WALL_H); seg(u0, u1, y1, WALL_H); if (kind === 'win') { seg(u0, u1, FLOOR_Y, y0); } cur = u1;
-      if (kind === 'door') doorList.push({ ax: w.ax, c: w.c, u0, u1, y0, y1, ext: isExt, front: !!ref.front, id: doorList.length });
-      if (kind === 'win') { for (const [q0, q1, q2, q3] of [[u0 - .06, u0, y0 - .04, y1 + .04], [u1, u1 + .06, y0 - .04, y1 + .04], [u0 - .06, u1 + .06, y0 - .06, y0], [u0 - .06, u1 + .06, y1, y1 + .05]]) { const th = T + .05; if (w.ax === 'z') mb.box(q0, q2, w.c - th / 2, q1, q3, w.c + th / 2, () => trim, 1); else mb.box(w.c - th / 2, q2, q0, w.c + th / 2, q3, q1, () => trim, 1); }
-        const gk = 'glass', gt = .02; if (w.ax === 'z') mb.box(u0, y0, w.c - gt, u1, y1, w.c + gt, () => gk, 1); else mb.box(w.c - gt, y0, u0, w.c + gt, y1, u1, () => gk, 1); } }
-    seg(cur, b, FLOOR_Y, WALL_H);
-    // colliders: solid pieces (door gaps stay open; the manager adds a blocker for closed doors)
-    let c0 = a; const col = (u0, u1) => { if (u1 - u0 < .05) return; if (w.ax === 'z') colliders.push({ x: (u0 + u1) / 2, z: w.c, hx: (u1 - u0) / 2, hz: T / 2 }); else colliders.push({ x: w.c, z: (u0 + u1) / 2, hx: T / 2, hz: (u1 - u0) / 2 }); };
-    for (const [u0, u1, , , kind] of ops) { if (kind === 'door') { col(c0, u0); c0 = u1; } } col(c0, b);
-    for (const [u0, u1, , , kind] of ops) if (kind === 'win') { /* sills are low: still solid for the player */ }
-  }
-  // floors (per room, different material for kitchens / bathrooms) and one ceiling slab
-  for (const r of plan.rooms) { const mk = r.type === 'kitchen' || r.type === 'bathroom' ? 'tile' : floor; mb.box(r.x0 - T / 2, 0, r.z0 - T / 2, r.x1 + T / 2, FLOOR_Y, r.z1 + T / 2, f => f === 'py' ? mk : (f === 'ny' ? null : 'found'), 2.4); }
+  plan.levels.forEach((lv, li) => {
+    const yb = lv.y0, yt = plan.custom ? (li === 0 ? TOWN.F2 : TOWN.TOP) : li === 0 ? WALL_H : FLOOR2_Y + WALL2_H, sill = yb + .77, head = yb + 1.97;
+    const openings = w => {                                    // openings of one wall, as [u0,u1,y0,y1,kind,ref]
+      const list = []; for (const d of lv.doors) if (d.ax === w.ax && Math.abs(d.c - w.c) < .05 && d.at > w.a && d.at < w.b) list.push([d.at - d.w / 2, d.at + d.w / 2, yb, yb + DOOR_H, 'door', d]);
+      for (const o of lv.wins) if (o.ax === w.ax && Math.abs(o.c - w.c) < .05 && o.at > w.a && o.at < w.b) list.push([o.at - o.w / 2, o.at + o.w / 2, sill, head, 'win', o]); return list.sort((p, q) => p[0] - q[0]);
+    };
+    const wallBox = (x0, y0, z0, x1, y1, z1, isExt, outSign) => {                 // one solid piece of wall; exterior side gets the exterior material
+      mb.box(x0, y0, z0, x1, y1, z1, face => { if (face === 'py') return trim; if (face === 'ny') return wall; const n = { px: [1, 0], nx: [-1, 0], pz: [0, 1], nz: [0, -1] }[face]; if (!n) return wall; return isExt && ((n[0] * outSign[0] + n[1] * outSign[1]) > 0) ? ext : wall; }, style === 'modern' ? 3 : 2);
+    };
+    for (const w of lv.walls) {
+      const ops = openings(w), isExt = !!w.ext, outSign = w.ax === 'z' ? [0, Math.sign(w.c) || 1] : [Math.sign(w.c) || 1, 0], a = w.a - (w.ext ? T / 2 : 0), b = w.b + (w.ext ? T / 2 : 0);
+      let cur = a; const seg = (u0, u1, y0, y1) => { if (u1 - u0 < .01 || y1 - y0 < .01) return; if (w.ax === 'z') wallBox(u0, y0, w.c - T / 2, u1, y1, w.c + T / 2, isExt, outSign); else wallBox(w.c - T / 2, y0, u0, w.c + T / 2, y1, u1, isExt, outSign); };
+      for (const [u0, u1, y0, y1, kind, ref] of ops) {
+        seg(cur, u0, yb, yt); seg(u0, u1, y1, yt); if (kind === 'win') seg(u0, u1, yb, y0); cur = u1;
+        if (kind === 'door') doorList.push({ ax: w.ax, c: w.c, u0, u1, y0, y1, ext: isExt, front: !!ref.front, id: doorList.length, level: li });
+        if (kind === 'win') {
+          for (const [q0, q1, q2, q3] of [[u0 - .06, u0, y0 - .04, y1 + .04], [u1, u1 + .06, y0 - .04, y1 + .04], [u0 - .06, u1 + .06, y0 - .06, y0], [u0 - .06, u1 + .06, y1, y1 + .05]]) { const th = T + .05; if (w.ax === 'z') mb.box(q0, q2, w.c - th / 2, q1, q3, w.c + th / 2, () => trim, 1); else mb.box(w.c - th / 2, q2, q0, w.c + th / 2, q3, q1, () => trim, 1); }
+          const gk = 'glass', gt = .02; if (w.ax === 'z') mb.box(u0, y0, w.c - gt, u1, y1, w.c + gt, () => gk, 1); else mb.box(w.c - gt, y0, u0, w.c + gt, y1, u1, () => gk, 1);
+        }
+      }
+      seg(cur, b, yb, yt);
+      let c0 = a; const col = (u0, u1) => { if (u1 - u0 < .05) return; const y0 = yb - .1, y1 = yt; if (w.ax === 'z') colliders.push({ x: (u0 + u1) / 2, z: w.c, hx: (u1 - u0) / 2, hz: T / 2, y0, y1 }); else colliders.push({ x: w.c, z: (u0 + u1) / 2, hx: T / 2, hz: (u1 - u0) / 2, y0, y1 }); };
+      for (const [u0, u1, , , kind] of ops) if (kind === 'door') { col(c0, u0); c0 = u1; }
+      col(c0, b);
+    }
+    // level 0 floors (kitchens / bathrooms tiled); level 1 floor is the slab that also roofs level 0
+    if (li === 0 && !plan.custom) for (const r of lv.rooms) { const mk = r.type === 'kitchen' || r.type === 'bathroom' ? 'tile' : floor; mb.box(r.x0 - T / 2, 0, r.z0 - T / 2, r.x1 + T / 2, FLOOR_Y, r.z1 + T / 2, f => f === 'py' ? mk : (f === 'ny' ? null : 'found'), 2.4); }
+  });
   mb.box(-hx - T, 0, -hz - T, hx + T, .04, hz + T, () => 'found', 3);
-  mb.box(-hx - T / 2, WALL_H, -hz - T / 2, hx + T / 2, WALL_H + .16, hz + T / 2, f => f === 'py' ? null : f === 'ny' ? 'ceil' : trim, 2);
+  if (plan.custom) {                                                                 // townhouse: only the outer skin, ceiling slab, porch and roof; the model provides everything inside
+    mb.box(-hx - T / 2, 0, -hz - T / 2, hx + T / 2, TOWN.F1 - .01, hz + T / 2, f => f === 'py' ? null : 'found', 2);
+    mb.box(-hx - T / 2, TOWN.TOP, -hz - T / 2, hx + T / 2, TOWN.TOP + .16, hz + T / 2, f => f === 'py' ? null : f === 'ny' ? 'ceil' : trim, 2);
+    const px = plan.fx; mb.box(px - 1.4, 0, hz + T / 2, px + 1.4, FLOOR_Y * .8, hz + 1.4, f => f === 'py' ? 'porch' : 'found', 1.6);
+    if (style !== 'modern') for (const s of [-1, 1]) mb.box(px + s * 1.25 - .07, FLOOR_Y * .8, hz + 1.25, px + s * 1.25 + .07, 2.55, hz + 1.4, () => trim, 1);
+    roof(mb, plan, hx, hz, TOWN.TOP + .16);
+    if (TOWN_DATA) { for (const c of TOWN_DATA.colliders) colliders.push(c); TOWN_DATA.stairs.forEach(() => 0); }
+    return { parts: mb.build(), colliders, doors: doorList, plan, stair: null, town: TOWN_DATA };
+  }
+  const two = plan.floors === 2, S = plan.stair, yTop = two ? FLOOR2_Y + WALL2_H : WALL_H;
+  // ceiling of level 0 / floor slab of level 1 (with the stairwell hole), and the ceiling of the top level
+  const slab = (x0, z0, x1, z1) => { if (x1 - x0 > .01 && z1 - z0 > .01) mb.box(x0, WALL_H, z0, x1, two ? FLOOR2_Y : WALL_H + .16, z1, f => f === 'py' ? (two ? 'floor' : null) : f === 'ny' ? 'ceil' : trim, 2); };
+  const X0 = -hx - T / 2, X1 = hx + T / 2, Z0 = -hz - T / 2, Z1 = hz + T / 2;
+  if (two) { slab(X0, Z0, S.x0, Z1); slab(S.x1, Z0, X1, Z1); slab(S.x0, Z0, S.x1, S.z0); slab(S.x0, S.z1, S.x1, Z1); } else slab(X0, Z0, X1, Z1);
+  if (two) mb.box(X0, yTop, Z0, X1, yTop + .16, Z1, f => f === 'py' ? null : f === 'ny' ? 'ceil' : trim, 2);
+  // staircase + railings around the stairwell
+  const stairInfo = two ? { ...S, n: 16, y0: FLOOR_Y, y1: FLOOR2_Y } : null;
+  if (two) {
+    const n = 16, rise = (FLOOR2_Y - FLOOR_Y) / n, alongZ = S.axis === 'z', len = alongZ ? S.z1 - S.z0 : S.x1 - S.x0, run = len / n;
+    for (let i = 0; i < n; i++) { const top = FLOOR_Y + (i + 1) * rise; if (alongZ) mb.box(S.x0, FLOOR_Y, S.z1 - (i + 1) * run, S.x1, top, S.z1 - i * run, () => 'trim', 1); else mb.box(S.x1 - (i + 1) * run, FLOOR_Y, S.z0, S.x1 - i * run, top, S.z1, () => 'trim', 1); }
+    const rail = (x0, z0, x1, z1) => { mb.box(x0, FLOOR2_Y, z0, x1, FLOOR2_Y + .06, z1, () => trim, 1); mb.box(x0, FLOOR2_Y + .85, z0, x1, FLOOR2_Y + .92, z1, () => trim, 1); };
+    if (alongZ) { rail(S.x0 - .04, S.z0, S.x0 + .04, S.z1 + .04); rail(S.x1 - .04, S.z0, S.x1 + .04, S.z1 + .04); rail(S.x0, S.z1 - .04, S.x1, S.z1 + .04); }
+    else { rail(S.x0, S.z0 - .04, S.x1 + .04, S.z0 + .04); rail(S.x0, S.z1 - .04, S.x1 + .04, S.z1 + .04); rail(S.x1 - .04, S.z0, S.x1 + .04, S.z1); }
+    for (const [x, z] of [[S.x0, S.z0], [S.x1, S.z0], [S.x0, S.z1], [S.x1, S.z1], [(S.x0 + S.x1) / 2, S.z0], [(S.x0 + S.x1) / 2, S.z1], [S.x0, (S.z0 + S.z1) / 2], [S.x1, (S.z0 + S.z1) / 2]]) mb.box(x - .04, FLOOR2_Y, z - .04, x + .04, FLOOR2_Y + .92, z + .04, () => trim, 1);
+    const yA = FLOOR_Y - .1, yB = FLOOR2_Y + 1, cx = (S.x0 + S.x1) / 2, cz = (S.z0 + S.z1) / 2;
+    if (alongZ) colliders.push({ x: S.x0, z: cz, hx: .06, hz: len / 2, y0: yA, y1: yB }, { x: S.x1, z: cz, hx: .06, hz: len / 2, y0: yA, y1: yB }, { x: cx, z: S.z1, hx: (S.x1 - S.x0) / 2, hz: .06, y0: FLOOR2_Y - .3, y1: yB });
+    else colliders.push({ x: cx, z: S.z0, hx: len / 2, hz: .06, y0: yA, y1: yB }, { x: cx, z: S.z1, hx: len / 2, hz: .06, y0: yA, y1: yB }, { x: S.x1, z: cz, hx: .06, hz: (S.z1 - S.z0) / 2, y0: FLOOR2_Y - .3, y1: yB });
+  }
   // porch in front of the door
   const px = plan.fx; mb.box(px - 1.6, 0, hz + T / 2, px + 1.6, FLOOR_Y * .8, hz + 1.5, f => f === 'py' ? 'porch' : 'found', 1.6);
   if (style !== 'modern') for (const s of [-1, 1]) mb.box(px + s * 1.45 - .07, FLOOR_Y * .8, hz + 1.35, px + s * 1.45 + .07, 2.55, hz + 1.5, () => trim, 1);
-  // roof
-  roof(mb, plan, hx, hz);
-  return { parts: mb.build(), colliders, doors: doorList, plan };
+  roof(mb, plan, hx, hz, yTop + .16);
+  return { parts: mb.build(), colliders, doors: doorList, plan, stair: stairInfo };
 }
 
-function roof(mb, plan, hx, hz) {
-  const { style } = plan, y0 = WALL_H + .16, o = style === 'modern' ? .25 : .55, X = hx + o, Z = hz + o;
+function roof(mb, plan, hx, hz, y0) {
+  const { style } = plan, o = style === 'modern' ? .25 : .55, X = hx + o, Z = hz + o;
   if (style === 'modern') {                                        // flat roof with parapet
     mb.box(-X, y0, -Z, X, y0 + .22, Z, f => f === 'py' ? 'roofflat' : trim, 2); mb.box(-X, y0 + .22, -Z, X, y0 + .55, -Z + .12, () => trim, 1); mb.box(-X, y0 + .22, Z - .12, X, y0 + .55, Z, () => trim, 1); mb.box(-X, y0 + .22, -Z, -X + .12, y0 + .55, Z, () => trim, 1); mb.box(X - .12, y0 + .22, -Z, X, y0 + .55, Z, () => trim, 1); return;
   }
@@ -99,10 +132,10 @@ const FRONT = { bed: 'head', wardrobe: 'front', dresser: 'front', shelf: 'front'
 // Returns [{role, file, size, x, z, y, rot, kind}] for one house. rot: rotation around Y so that +Z of the item faces the room interior wall-normal.
 export function furnish(plan) {
   const items = [], { seed } = plan; let idx = 0; const R = () => rnd(seed, 500 + idx++), pick = role => { const c = CATALOG[role]; const p = c[Math.floor(R() * c.length)]; return p; };
-  const add = (role, x, z, rot, opts = {}) => { const [file, size] = opts.pick || pick(role); items.push({ role, file, size: size * (opts.k || 1), x, z, y: opts.y || 0, rot, ...opts }); };
+  let curY = FLOOR_Y; const add = (role, x, z, rot, opts = {}) => { const [file, size] = opts.pick || pick(role); items.push({ role, file, size: size * (opts.k || 1), ...opts, x, z, y: (opts.y || 0) + curY, rot, level: curY > 1 ? 1 : 0 }); };
   const face = { n: Math.PI, s: 0, e: -Math.PI / 2, w: Math.PI / 2 };                  // rot when an item's front faces north(-z)... (+Z faces the given direction)
-  for (const r of plan.rooms) {
-    const w = r.x1 - r.x0, d = r.z1 - r.z0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, m = .12, t = r.type;
+  for (const lv of plan.levels) for (const r of lv.rooms) {
+    curY = lv.y0; const w = r.x1 - r.x0, d = r.z1 - r.z0, cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2, m = .12, t = r.type;
     // helpers: place along a wall. side 'n' = wall at z0 (item front faces +z), 's' = wall at z1 (front faces -z), 'w' = x0 (front +x), 'e' = x1 (front -x)
     const along = (side, role, u, opts = {}) => {
       const it = (opts.pick || CATALOG[role][0]), depth = (opts.depth ?? (it[1] * .42)) + m;
@@ -123,12 +156,13 @@ export function furnish(plan) {
       const o = other(b); along(o, 'wardrobe', mid - lenAlong / 4, { depth: .4, interact: 'search' }); along(o, 'dresser', mid + lenAlong / 4, { depth: .3, interact: 'search' }); add('rug', cx, cz, 0, { flat: true }); if (R() < .6) along(o, 'plant', mid + lenAlong / 2 - .6, { depth: .25 });
     } else if (t === 'study') {
       const s = longSide[0]; along(s, 'desk', mid, { depth: .5, interact: 'search' }); add('deskchair', cx, cz + (s === 'n' ? .9 : -.9), s === 'n' ? 0 : Math.PI, { interact: 'sit' }); along(other(s), 'shelf', mid - lenAlong / 4, { depth: .3, interact: 'read' }); along(other(s), 'shelf', mid + lenAlong / 4, { depth: .3, interact: 'read' }); if (R() < .6) add('globe', cx + 1, cz, 0, {}); along(s, 'lamp', mid + lenAlong / 2 - .5, { depth: .3 });
+    } else if (t === 'hall') {
+      along('n', 'plant', cx, { depth: .3 }); if (d > 6) along('s', 'lamp', cx, { depth: .3 }); if (d > 8) along(w > 2.6 ? 'w' : 'e', 'plant', cz + 1, { depth: .3 });
     } else if (t === 'bathroom') {
       const s = longSide[0]; along(s, 'bath', mid - lenAlong / 4, { depth: .5 }); along(s, 'toilet', mid + lenAlong / 4, { depth: .3 }); along(other(s), 'bsink', mid, { depth: .3 });
     }
   }
-  // entrance: coat rack near the front door
-  items.push({ role: 'coatrack', file: 'h_Coat_rack', size: 1.8, x: plan.fx + 1.3, z: plan.D / 2 - .6, y: 0, rot: Math.PI });
-  for (const it of items) it.y = (it.y || 0) + FLOOR_Y;
-  return items;
+  // entrance: coat rack near the front door; nothing may stand on the staircase
+  items.push({ role: 'coatrack', file: 'h_Coat_rack', size: 1.8, x: plan.fx + 1.3, z: plan.D / 2 - .6, y: FLOOR_Y, rot: Math.PI, level: 0 });
+  const S = plan.stair; return S ? items.filter(it => !(it.level === 0 && it.x > S.x0 - .5 && it.x < S.x1 + .5 && it.z > S.z0 - .3 && it.z < S.z1 + .5) && !(it.level === 1 && it.x > S.x0 - .3 && it.x < S.x1 + .3 && it.z > S.z0 - .3 && it.z < S.z1 + .3)) : items;
 }

@@ -17,6 +17,7 @@ import { EnemyManager } from './enemies.js';
 import { Cinematics, Story } from './story.js';
 import { Multiplayer } from './net.js';
 import { HouseManager } from './houses.js';
+import { setTownData } from './housegen.js';
 import { PlayerHorse, DEFAULT_HORSE } from './horse.js';
 import { DialogueUI } from './dialogue_ui.js';
 import { loadCharacterAssets, GltfBody } from './character.js';
@@ -53,6 +54,7 @@ const veg = new Vegetation();
   const names = [...Object.values(TREE_SETS).flat().flatMap(n => [n, n + '_lod1']), ...Object.values(PLANT_SETS).flat(), ...GRASS_SET, ...Object.values(ROCK_SET).flat(), ...new Set(Object.values(BLD).map(b => b[0]))];
   $('loadmsg').textContent = 'Cargando vegetación…'; await veg.load([...new Set(names)], f => { $('loadbar').style.width = (f * 40) + '%'; });
 }
+setTownData(await fetch('assets/house/townhouse.json').then(r => r.ok ? r.json() : null).catch(() => null));      // hand-made townhouse interior (colliders, stairs, doors, interactives)
 const sky = new Sky(scene), terrain = new Terrain(scene, 20240519, veg), birds = new Birds(scene), ambience = new Ambience();
 const houses = new HouseManager({ scene, terrain, sky }); terrain.houses = houses;
 const cfgWater = mergeWater(await fetch('config/water.json').then(r => r.ok ? r.json() : null).catch(() => null) || {});

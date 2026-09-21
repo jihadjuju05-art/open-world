@@ -2,7 +2,7 @@
 // animated doors, interactions (sit, sleep, search, lamps, read, cook) and a small inventory.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { getShell, furnish, STYLES, SIZES, WALL_HEIGHT } from './housegen.js';
+import { getShell, furnish, STYLES, SIZES, WALL_HEIGHT, FLOOR2_Y, WALL2_H } from './housegen.js';
 
 const TEX = 'assets/tex/';
 const STYLE_MATS = {                                // exterior / roof textures and tints per style
@@ -55,7 +55,7 @@ export class HouseManager {
     const inst = { key, x, z, y, rot, seed, style, size, group, shell: sh, interior: null, doors: [], built: false, colInfo, doorObjs: [] }; this.houses.set(key, inst); this.scene.add(group);
     // doors: leaves hinged on the left edge
     for (const d of sh.doors) { const w = d.u1 - d.u0, leaf = new THREE.Group(), mesh = new THREE.Mesh(new THREE.BoxGeometry(w - .04, 2.05, .05), this.doorMat); mesh.position.set((w - .04) / 2, 1.03, 0); mesh.castShadow = true; leaf.add(mesh); const knob = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 6), new THREE.MeshStandardMaterial({ color: 0xb08a3a, metalness: .8, roughness: .3 })); knob.position.set(w - .18, 1.0, .05); leaf.add(knob);
-      if (d.ax === 'z') { leaf.position.set(d.u0 + .02, .18, d.c); } else { leaf.position.set(d.c, .18, d.u0 + .02); leaf.rotation.y = -Math.PI / 2; leaf.userData.rot0 = -Math.PI / 2; }
+      if (d.ax === 'z') { leaf.position.set(d.u0 + .02, d.y0, d.c); } else { leaf.position.set(d.c, d.y0, d.u0 + .02); leaf.rotation.y = -Math.PI / 2; leaf.userData.rot0 = -Math.PI / 2; }
       leaf.userData.rot0 = leaf.rotation.y; group.add(leaf); const o = { id: d.id, d, leaf, open: 0, target: 0, col: colInfo?.doorCols?.[d.id] }; inst.doorObjs.push(o); }
     return group;
   }
@@ -68,18 +68,30 @@ export class HouseManager {
       const r = { scene: g.scene, max: Math.max(size.x, size.y, size.z, .001), cx: c.x, cz: c.z, minY: box.min.y }; this.protos.set(file, r); return r; }).catch(() => { this.protos.set(file, null); return null; });
     this.pending.set(file, p); return p;
   }
+  // The townhouse interior is one hand-made model (static mesh with vertex colours + 4 hinged doors); interactive items come from its JSON.
+  loadTown() { if (!this.townP) this.townP = this.loader.loadAsync('assets/house/townhouse.glb').then(g => g.scene).catch(() => null); return this.townP; }
+  async buildTown(inst) {
+    inst.building = true; const T = inst.shell.town, root = await this.loadTown(); if (!root || !T) { inst.building = false; return; }
+    const grp = new THREE.Group(); inst.interior = grp; inst.group.add(grp); inst.inter = [];
+    if (!this.townMat) this.townMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .85, metalness: 0, envMapIntensity: .3 });
+    root.traverse(o => { if (!o.isMesh) return; const m = new THREE.Mesh(o.geometry, this.townMat); m.castShadow = true; m.receiveShadow = true; const dm = /^door_(\d)/.exec(o.name) || (o.parent && /^door_(\d)/.exec(o.parent.name));
+      if (dm) { const id = +dm[1], d = T.doors.find(q => q.id === id); if (!d) return; const leaf = new THREE.Group(); leaf.position.set(d.hinge[0], d.hinge[1], d.hinge[2]); m.position.set(0, 0, 0); leaf.add(m); grp.add(leaf); leaf.userData.rot0 = 0; inst.doorObjs.push({ id: 100 + id, model: true, d: { ax: d.axis }, local: new THREE.Vector3(d.cx, (d.y0 + d.y1) / 2, d.cz), leaf, open: 0, target: 0, col: inst.colInfo?.doorCols?.[100 + id], sgn: d.axis === 'x' ? 1 : -1 }); }
+      else { m.position.copy(o.position); m.quaternion.copy(o.quaternion); m.scale.copy(o.scale); grp.add(m); } });
+    for (const it of T.interact) { const holder = new THREE.Group(); holder.position.set(it.x, it.y0, it.z); holder.rotation.y = Math.atan2(-it.x, -it.z); grp.add(holder); inst.inter.push({ it: { role: it.name, interact: it.kind, x: it.x, z: it.z }, holder, inst }); }
+    inst.building = false;
+  }
   async buildInterior(inst) {
-    if (inst.interior || inst.building) return; inst.building = true; const plan = inst.shell.plan, items = furnish(plan), grp = new THREE.Group(); inst.interior = grp; inst.group.add(grp); inst.inter = [];
+    if (inst.interior || inst.building) return; if (inst.shell.plan.custom) return this.buildTown(inst); inst.building = true; const plan = inst.shell.plan, items = furnish(plan), grp = new THREE.Group(); inst.interior = grp; inst.group.add(grp); inst.inter = [];
     const protos = await Promise.all(items.map(it => this.loadProto(it.file))); if (inst.interior !== grp) return;                      // dropped meanwhile
     items.forEach((it, i) => {
       const pr = protos[i]; if (!pr) return; const k = it.size / pr.max, o = pr.scene.clone(true); const holder = new THREE.Group(); o.scale.setScalar(k); o.position.set(-pr.cx * k, -pr.minY * k, -pr.cz * k); holder.add(o); holder.position.set(it.x, it.y + (it.flat ? .01 : 0), it.z); holder.rotation.y = it.rot + (FIX[it.file] || 0); grp.add(holder);
       const e = { it, holder, inst }; if (it.interact && it.interact !== 'none') inst.inter.push(e); if (it.role === 'lamp') { e.lamp = true; e.on = false; inst.inter.push(e); e.it.interact = 'lamp'; }
     });
     // ceiling light in each room (glow disc; real light comes from the pooled point lights)
-    for (const r of plan.rooms) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .05, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c8 })); m.position.set((r.x0 + r.x1) / 2, WALL_HEIGHT - .05, (r.z0 + r.z1) / 2); grp.add(m); }
+    if (!plan.custom) for (const lv of plan.levels) for (const r of lv.rooms) { const m = new THREE.Mesh(new THREE.CylinderGeometry(.16, .16, .05, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c8 })); m.position.set((r.x0 + r.x1) / 2, lv.y0 + lv.h - .12, (r.z0 + r.z1) / 2); grp.add(m); }
     inst.building = false;
   }
-  dropInterior(inst) { if (inst.interior) { inst.group.remove(inst.interior); inst.interior = null; inst.inter = []; } }
+  dropInterior(inst) { if (inst.interior) { inst.group.remove(inst.interior); inst.interior = null; inst.inter = []; inst.doorObjs = inst.doorObjs.filter(o => !o.model); } }
   // ---- per-frame ----
   update(dt) {
     const P = this.player.pos; this.scan -= dt;
@@ -90,11 +102,11 @@ export class HouseManager {
       near.forEach((inst, k) => { const R = Math.max(inst.shell.plan.W, inst.shell.plan.D) / 2 + 16; if (k < 3 && inst.dist < R) { if (!inst.interior && !inst.building) this.buildInterior(inst); } else if (inst.interior && (k >= 3 || inst.dist > R + 10)) this.dropInterior(inst); });      // furniture only for the 3 nearest houses
       // pooled lights: rooms of the nearest houses, warm at night and inside
       const night = this.sky.hour < 7 || this.sky.hour > 18.5; let li = 0; const inside = near[0] && this.isInside(near[0], P);
-      for (const inst of near.slice(0, 2)) for (const r of inst.shell.plan.rooms) { if (li >= this.lightPool.length) break; const l = this.lightPool[li++], c = new THREE.Vector3((r.x0 + r.x1) / 2, WALL_HEIGHT - .5, (r.z0 + r.z1) / 2).applyMatrix4(inst.group.matrixWorld); l.position.copy(c); l.intensity = inside || night ? 9 : 2.5; }
+      for (const inst of near.slice(0, 2)) for (const lv of inst.shell.plan.levels) for (const r of lv.rooms) { if (li >= this.lightPool.length) break; const l = this.lightPool[li++], c = new THREE.Vector3((r.x0 + r.x1) / 2, lv.y0 + lv.h - .5, (r.z0 + r.z1) / 2).applyMatrix4(inst.group.matrixWorld); l.position.copy(c); l.intensity = inside || night ? 9 : 2.5; }
       for (; li < this.lightPool.length; li++) this.lightPool[li].intensity = 0;
     }
     // door animation
-    for (const inst of this.houses.values()) for (const o of inst.doorObjs) { if (o.open !== o.target) { o.open += Math.sign(o.target - o.open) * Math.min(Math.abs(o.target - o.open), dt * 3.2); o.leaf.rotation.y = o.leaf.userData.rot0 + o.open * -1.75 * (o.d.ax === 'z' ? 1 : 1); if (o.col) o.col.open = o.open > .3; } }
+    for (const inst of this.houses.values()) for (const o of inst.doorObjs) { if (o.open !== o.target) { o.open += Math.sign(o.target - o.open) * Math.min(Math.abs(o.target - o.open), dt * 3.2); o.leaf.rotation.y = o.leaf.userData.rot0 + o.open * -1.75 * (o.sgn || 1); if (o.col) o.col.open = o.open > .3; } }
     this.pick();
   }
   isInside(inst, p) { const l = inst.group.worldToLocal(p.clone()), pl = inst.shell.plan; return Math.abs(l.x) < pl.W / 2 && Math.abs(l.z) < pl.D / 2; }
@@ -103,7 +115,7 @@ export class HouseManager {
     if (!this.near || this.combat.busy || this.player.mounted) { this.target = null; return; } const P = this.player.pos, fwd = new THREE.Vector3(Math.sin(this.player.yaw), 0, Math.cos(this.player.yaw)); let best = null, bs = 1e9;
     for (const inst of this.near.slice(0, 3)) {
       const cand = [];
-      for (const o of inst.doorObjs) { const w = new THREE.Vector3(o.d.ax === 'z' ? (o.d.u0 + o.d.u1) / 2 : o.d.c, 1, o.d.ax === 'z' ? o.d.c : (o.d.u0 + o.d.u1) / 2).applyMatrix4(inst.group.matrixWorld); cand.push({ kind: 'door', o, pos: w, label: o.target ? 'Cerrar puerta' : 'Abrir puerta', r: 2.3 }); }
+      for (const o of inst.doorObjs) { const w = (o.local ? o.local.clone() : new THREE.Vector3(o.d.ax === 'z' ? (o.d.u0 + o.d.u1) / 2 : o.d.c, 1, o.d.ax === 'z' ? o.d.c : (o.d.u0 + o.d.u1) / 2)).applyMatrix4(inst.group.matrixWorld); cand.push({ kind: 'door', o, pos: w, label: o.target ? 'Cerrar puerta' : 'Abrir puerta', r: 2.3 }); }
       for (const e of inst.inter || []) { const w = e.holder.getWorldPosition(new THREE.Vector3()), t = e.it.interact, done = this.searched.has(inst.key + e.it.role + e.it.x + e.it.z); if (t === 'search' && done) continue; cand.push({ kind: t, e, pos: w, label: { sit: 'Sentarse', sleep: 'Dormir', search: 'Registrar', sink: 'Beber agua', stove: 'Cocinar', read: 'Leer un libro', fire: 'Calentarse', lamp: e.on ? 'Apagar lámpara' : 'Encender lámpara' }[t] || 'Usar', r: t === 'sleep' ? 2.6 : 1.9 }); }
       for (const c of cand) { const dx = c.pos.x - P.x, dz = c.pos.z - P.z, d = Math.hypot(dx, dz); if (d > c.r || Math.abs(c.pos.y - P.y) > 2.4) continue; const ang = Math.abs(((Math.atan2(dx, dz) - this.player.yaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI); if (ang > 1.15 && d > .9) continue; const s = d + ang * .8; if (s < bs) { bs = s; best = c; } }
     }
@@ -113,7 +125,7 @@ export class HouseManager {
     const t = this.target; if (!t) return false;
     if (t.kind === 'door') { t.o.target = t.o.target ? 0 : 1; return true; }
     const e = t.e;
-    if (t.kind === 'sit') { const p = t.pos; this.player.pos.set(p.x, this.terrain.height(p.x, p.z) + .18, p.z); this.player.yaw = e.holder.getWorldQuaternion(new THREE.Quaternion()) && this.yawOf(e.holder); this.combat.emote = { clip: 'Sitting_Idle_Loop', loop: true }; this.combat.body.startAction('Sitting_Idle_Loop', { loop: true, fade: .25 }); this.toast?.('Sentado', 'Muévete para levantarte'); return true; }
+    if (t.kind === 'sit') { const p = t.pos; this.player.pos.set(p.x, this.terrain.walkY(p.x, p.z, p.y) + .18, p.z); this.player.yaw = e.holder.getWorldQuaternion(new THREE.Quaternion()) && this.yawOf(e.holder); this.combat.emote = { clip: 'Sitting_Idle_Loop', loop: true }; this.combat.body.startAction('Sitting_Idle_Loop', { loop: true, fade: .25 }); this.toast?.('Sentado', 'Muévete para levantarte'); return true; }
     if (t.kind === 'sleep') { this.sleep(); return true; }
     if (t.kind === 'lamp') { e.on = !e.on; e.holder.traverse(o => { if (o.isMesh && o.material) { o.material = o.material.clone?.() || o.material; o.material.emissive = new THREE.Color(e.on ? 0xffc870 : 0x000000); o.material.emissiveIntensity = e.on ? .9 : 0; } }); return true; }
     if (t.kind === 'search') { this.searched.add(t.e.inst.key + e.it.role + e.it.x + e.it.z); this.loot(); return true; }

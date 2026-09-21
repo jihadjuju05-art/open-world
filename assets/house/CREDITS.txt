@@ -1,0 +1,3 @@
+Low Poly House Interior - Paolo Mercogliano (https://sketchfab.com/3d-models/low-poly-house-interior-62b1714ef66f4e0d9f42dcd12efb3f52)
+License: CC BY 4.0 - https://creativecommons.org/licenses/by/4.0/
+Modified: colours baked to vertex colours, meshes merged, doors separated, exterior shell and roof added.

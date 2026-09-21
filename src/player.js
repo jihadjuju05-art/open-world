@@ -70,7 +70,7 @@ export class Player {
   }
   update(dt, input, camYaw) {
     const T = this.terrain, want = new THREE.Vector3(input.x, 0, input.z);
-    const ground = T.height(this.pos.x, this.pos.z), depth = Math.max(0, this.waterLevel - ground), wading = depth > .1 ? Math.min(1, depth / 1.0) : 0; this.wading = wading; this.depth = depth;
+    const ground = T.walkY(this.pos.x, this.pos.z, this.pos.y), depth = Math.max(0, this.waterLevel - ground), wading = depth > .1 ? Math.min(1, depth / 1.0) : 0; this.wading = wading; this.depth = depth;
     const swimT = depth > 1.15 ? 1 : 0; this.swim += (swimT - this.swim) * Math.min(1, dt * 6); const swimming = this.swim > .5; this.swimming = swimming;
     let target = 0, yawTarget = this.yaw;
     if (want.lengthSq() > 0) {
@@ -89,10 +89,10 @@ export class Player {
       const rv = T.riverAt(this.pos.x, this.pos.z), push = rv.t * (.9 + .7 * Math.min(1, depth)) * (swimming ? 1.3 : 1);
       this.pos.x += rv.fx * push * dt; this.pos.z += rv.fz * push * dt; this.current = push;
     } else this.current = 0;
-    const newGround = T.height(this.pos.x, this.pos.z), rise = newGround - ground;
-    if (this.grounded && rise > Math.max(.06, this.speed * dt * 1.2)) { this.pos.x = old.x; this.pos.z = old.z; this.speed *= .5; }     // too steep
+    const newGround = T.walkY(this.pos.x, this.pos.z, this.pos.y), rise = newGround - ground;
+    if (this.grounded && rise > Math.max(.2, this.speed * dt * 1.2)) { this.pos.x = old.x; this.pos.z = old.z; this.speed *= .5; }     // too steep
     T.pushOut(this.pos, .32);
-    const g = T.height(this.pos.x, this.pos.z);
+    const g = T.walkY(this.pos.x, this.pos.z, this.pos.y);
     if (this.grounded && input.jump && wading < .6 && !swimming) { this.vel.y = 6.6 + Math.min(1.2, this.speed * .15); this.grounded = false; this.airT = 0; this.jumped = true; }
     if (swimming) {                                                // float with the head above water
       this.grounded = true; this.vel.y = 0; const bob = Math.sin(performance.now() * .0022) * .045;
