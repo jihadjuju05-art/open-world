@@ -8,14 +8,14 @@ const SAVE = 'openworld.story.v1';
 const ease = t => t * t * (3 - 2 * t);
 // Voice acting: assets/voice/<id>.mp3, id = FNV-1a hash of the subtitle text; only ids listed in assets/voice/index.json are played.
 export const voiceId = text => { let h = 0x811c9dc5; for (const ch of text) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16).padStart(8, '0'); };
-let VOICES = null; const loadVoices = () => VOICES || (VOICES = fetch('assets/voice/index.json').then(r => r.ok ? r.json() : {}).then(o => Array.isArray(o) ? Object.fromEntries(o.map(k => [k, 'mp3'])) : o).catch(() => ({})));
+let VOICES = null; const loadVoices = () => VOICES || (VOICES = fetch('assets/voice/index.json').then(r => r.ok ? r.json() : {}).then(o => Array.isArray(o) ? Object.fromEntries(o.map(k => [k, { e: 'mp3', d: 0 }])) : Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'string' ? { e: v, d: 0 } : v]))).catch(() => ({})));
 const $ = id => document.getElementById(id);
 const dirName = (dx, dz) => ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][Math.round(((Math.atan2(dx, -dz) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
 
 // ------------------------------------------------------------------ cinematics
 export class Cinematics {
   constructor({ camera, terrain, player, resolve, onStart, onEnd }) {
-    Object.assign(this, { camera, terrain, player, resolve, onStart, onEnd }); this.active = false; this.bars = $('cine'); this.sub = $('cinesub'); this.type = { text: '', n: 0 };
+    Object.assign(this, { camera, terrain, player, resolve, onStart, onEnd }); this.active = false; this.typeRate = 32; loadVoices().then(m => { this.vmap = m; }); this.bars = $('cine'); this.sub = $('cinesub'); this.type = { text: '', n: 0 };
     addEventListener('keydown', e => { if (this.active && (e.code === 'Enter' || e.code === 'Space' || e.code === 'Escape')) { e.preventDefault(); e.stopImmediatePropagation(); this.skip(); } }, true);
   }
   // shots: [{ t, at, orbit:[r0,r1,h0,h1,a0,a1], look, fov:[f0,f1], who, text, talk:[npcKey...] }]
@@ -23,18 +23,19 @@ export class Cinematics {
     this.shots = shots; this.i = -1; this.done = done; this.active = true; this.bars.classList.add('on'); this.onStart?.(); this.fov0 = this.camera.fov; this.next();
   }
   next() {
-    this.i++; if (this.i >= this.shots.length) return this.end(); const s = this.shots[this.i]; this.shot = s; this.t = 0; this.text = s.text || ''; this.typed = 0;
+    this.i++; if (this.i >= this.shots.length) return this.end(); const s = this.shots[this.i]; this.shot = s; this.t = 0; this.text = s.text || ''; this.typed = 0; this.typeRate = 32;
+    const vm = s.text && this.vmap?.[voiceId(s.text)]; if (vm?.d) { s.t = Math.max(s.t, vm.d + .35); this.typeRate = s.text.length / (vm.d * .92); }      // shot and subtitles last as long as the voice line
     this.sub.innerHTML = s.text ? `<b>${s.who || ''}</b><span></span>` : ''; this.subSpan = this.sub.querySelector('span'); s.enter?.(); this.speak(s);
   }
   speak(s) {
-    this.stopVoice(); if (!s.text) return; const id = voiceId(s.text), idx = this.i; loadVoices().then(map => { if (!map[id] || !this.active || this.i !== idx) return; const a = this.voice = new Audio(`assets/voice/${id}.${map[id]}`); a.volume = .95; a.play().catch(() => { }); });
+    this.stopVoice(); if (!s.text) return; const id = voiceId(s.text), idx = this.i; loadVoices().then(map => { if (!map[id]?.e || !this.active || this.i !== idx) return; const a = this.voice = new Audio(`assets/voice/${id}.${map[id].e}`); a.volume = .95; a.play().catch(() => { }); });
   }
   stopVoice() { if (this.voice) { this.voice.pause(); this.voice = null; } }
   skip() { if (!this.active) return; this.stopVoice(); this.i = this.shots.length; this.end(); }
   end() { this.stopVoice(); this.active = false; this.bars.classList.remove('on'); this.sub.innerHTML = ''; this.camera.fov = this.fov0; this.camera.updateProjectionMatrix(); this.onEnd?.(); const d = this.done; this.done = null; d?.(); }
   update(dt) {
     if (!this.active) return; const s = this.shot; this.t += dt; const k = Math.min(1, this.t / s.t), e = ease(k), lerp = (a, b) => a + (b - a) * e;
-    this.typed = Math.min(this.text.length, this.typed + dt * 32); if (this.subSpan) this.subSpan.textContent = this.text.slice(0, Math.floor(this.typed));
+    this.typed = Math.min(this.text.length, this.typed + dt * this.typeRate); if (this.subSpan) this.subSpan.textContent = this.text.slice(0, Math.floor(this.typed));
     const at = this.resolve(s.at || 'player'), o = s.orbit || [8, 8, 3, 3, 0, 1], a = lerp(o[4], o[5]) + (s.rel ? (at.yaw || 0) : 0), r = lerp(o[0], o[1]), h = lerp(o[2], o[3]);
     const pos = new V3(at.x + Math.sin(a) * r, at.y + h, at.z + Math.cos(a) * r); pos.y = Math.max(pos.y, this.terrain.height(pos.x, pos.z) + 1.2);
     const focus = new V3(at.x, at.y + (s.look ?? 1.4), at.z), f = this.terrain.clearFraction(focus, pos); if (f < 1) pos.lerpVectors(focus, pos, Math.max(.35, f));      // keep the camera out of walls and trees

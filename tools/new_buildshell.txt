@@ -1,0 +1,57 @@
+// Builds the shell of every level: returns { parts:[{key,geo}], colliders:[{x,z,hx,hz,y0,y1}], doors:[...], stair, plan }.
+export function buildShell(plan) {
+  const { W, D, style, seed } = plan, hx = W / 2, hz = D / 2, mb = new MB(), colliders = [], doorList = [];
+  const ext = 'ext', wall = 'wall', floor = 'floor';
+  plan.levels.forEach((lv, li) => {
+    const yb = lv.y0, yt = li === 0 ? WALL_H : FLOOR2_Y + WALL2_H, sill = yb + .77, head = yb + 1.97;
+    const openings = w => {                                    // openings of one wall, as [u0,u1,y0,y1,kind,ref]
+      const list = []; for (const d of lv.doors) if (d.ax === w.ax && Math.abs(d.c - w.c) < .05 && d.at > w.a && d.at < w.b) list.push([d.at - d.w / 2, d.at + d.w / 2, yb, yb + DOOR_H, 'door', d]);
+      for (const o of lv.wins) if (o.ax === w.ax && Math.abs(o.c - w.c) < .05 && o.at > w.a && o.at < w.b) list.push([o.at - o.w / 2, o.at + o.w / 2, sill, head, 'win', o]); return list.sort((p, q) => p[0] - q[0]);
+    };
+    const wallBox = (x0, y0, z0, x1, y1, z1, isExt, outSign) => {                 // one solid piece of wall; exterior side gets the exterior material
+      mb.box(x0, y0, z0, x1, y1, z1, face => { if (face === 'py') return trim; if (face === 'ny') return wall; const n = { px: [1, 0], nx: [-1, 0], pz: [0, 1], nz: [0, -1] }[face]; if (!n) return wall; return isExt && ((n[0] * outSign[0] + n[1] * outSign[1]) > 0) ? ext : wall; }, style === 'modern' ? 3 : 2);
+    };
+    for (const w of lv.walls) {
+      const ops = openings(w), isExt = !!w.ext, outSign = w.ax === 'z' ? [0, Math.sign(w.c) || 1] : [Math.sign(w.c) || 1, 0], a = w.a - (w.ext ? T / 2 : 0), b = w.b + (w.ext ? T / 2 : 0);
+      let cur = a; const seg = (u0, u1, y0, y1) => { if (u1 - u0 < .01 || y1 - y0 < .01) return; if (w.ax === 'z') wallBox(u0, y0, w.c - T / 2, u1, y1, w.c + T / 2, isExt, outSign); else wallBox(w.c - T / 2, y0, u0, w.c + T / 2, y1, u1, isExt, outSign); };
+      for (const [u0, u1, y0, y1, kind, ref] of ops) {
+        seg(cur, u0, yb, yt); seg(u0, u1, y1, yt); if (kind === 'win') seg(u0, u1, yb, y0); cur = u1;
+        if (kind === 'door') doorList.push({ ax: w.ax, c: w.c, u0, u1, y0, y1, ext: isExt, front: !!ref.front, id: doorList.length, level: li });
+        if (kind === 'win') {
+          for (const [q0, q1, q2, q3] of [[u0 - .06, u0, y0 - .04, y1 + .04], [u1, u1 + .06, y0 - .04, y1 + .04], [u0 - .06, u1 + .06, y0 - .06, y0], [u0 - .06, u1 + .06, y1, y1 + .05]]) { const th = T + .05; if (w.ax === 'z') mb.box(q0, q2, w.c - th / 2, q1, q3, w.c + th / 2, () => trim, 1); else mb.box(w.c - th / 2, q2, q0, w.c + th / 2, q3, q1, () => trim, 1); }
+          const gk = 'glass', gt = .02; if (w.ax === 'z') mb.box(u0, y0, w.c - gt, u1, y1, w.c + gt, () => gk, 1); else mb.box(w.c - gt, y0, u0, w.c + gt, y1, u1, () => gk, 1);
+        }
+      }
+      seg(cur, b, yb, yt);
+      let c0 = a; const col = (u0, u1) => { if (u1 - u0 < .05) return; const y0 = yb - .1, y1 = yt; if (w.ax === 'z') colliders.push({ x: (u0 + u1) / 2, z: w.c, hx: (u1 - u0) / 2, hz: T / 2, y0, y1 }); else colliders.push({ x: w.c, z: (u0 + u1) / 2, hx: T / 2, hz: (u1 - u0) / 2, y0, y1 }); };
+      for (const [u0, u1, , , kind] of ops) if (kind === 'door') { col(c0, u0); c0 = u1; }
+      col(c0, b);
+    }
+    // level 0 floors (kitchens / bathrooms tiled); level 1 floor is the slab that also roofs level 0
+    if (li === 0) for (const r of lv.rooms) { const mk = r.type === 'kitchen' || r.type === 'bathroom' ? 'tile' : floor; mb.box(r.x0 - T / 2, 0, r.z0 - T / 2, r.x1 + T / 2, FLOOR_Y, r.z1 + T / 2, f => f === 'py' ? mk : (f === 'ny' ? null : 'found'), 2.4); }
+  });
+  mb.box(-hx - T, 0, -hz - T, hx + T, .04, hz + T, () => 'found', 3);
+  const two = plan.floors === 2, S = plan.stair, yTop = two ? FLOOR2_Y + WALL2_H : WALL_H;
+  // ceiling of level 0 / floor slab of level 1 (with the stairwell hole), and the ceiling of the top level
+  const slab = (x0, z0, x1, z1) => { if (x1 - x0 > .01 && z1 - z0 > .01) mb.box(x0, WALL_H, z0, x1, two ? FLOOR2_Y : WALL_H + .16, z1, f => f === 'py' ? (two ? 'floor' : null) : f === 'ny' ? 'ceil' : trim, 2); };
+  const X0 = -hx - T / 2, X1 = hx + T / 2, Z0 = -hz - T / 2, Z1 = hz + T / 2;
+  if (two) { slab(X0, Z0, S.x0, Z1); slab(S.x1, Z0, X1, Z1); slab(S.x0, Z0, S.x1, S.z0); slab(S.x0, S.z1, S.x1, Z1); } else slab(X0, Z0, X1, Z1);
+  if (two) mb.box(X0, yTop, Z0, X1, yTop + .16, Z1, f => f === 'py' ? null : f === 'ny' ? 'ceil' : trim, 2);
+  // staircase + railings around the stairwell
+  const stairInfo = two ? { ...S, n: 16, y0: FLOOR_Y, y1: FLOOR2_Y } : null;
+  if (two) {
+    const n = 16, rise = (FLOOR2_Y - FLOOR_Y) / n, run = (S.z1 - S.z0) / n;
+    for (let i = 0; i < n; i++) mb.box(S.x0, FLOOR_Y, S.z1 - (i + 1) * run, S.x1, FLOOR_Y + (i + 1) * rise, S.z1 - i * run, () => 'trim', 1);
+    const rail = (x0, z0, x1, z1) => { mb.box(x0, FLOOR2_Y, z0, x1, FLOOR2_Y + .06, z1, () => trim, 1); mb.box(x0, FLOOR2_Y + .85, z0, x1, FLOOR2_Y + .92, z1, () => trim, 1); };
+    rail(S.x0 - .04, S.z0, S.x0 + .04, S.z1 + .04); rail(S.x1 - .04, S.z0, S.x1 + .04, S.z1 + .04); rail(S.x0, S.z1 - .04, S.x1, S.z1 + .04);
+    for (const [x, z] of [[S.x0, S.z0], [S.x1, S.z0], [S.x0, S.z1], [S.x1, S.z1], [S.x0, (S.z0 + S.z1) / 2], [S.x1, (S.z0 + S.z1) / 2]]) mb.box(x - .04, FLOOR2_Y, z - .04, x + .04, FLOOR2_Y + .92, z + .04, () => trim, 1);
+    // stairwell collision: side walls along the stair (ground to upper railing) and a rail across the south edge upstairs
+    colliders.push({ x: S.x0, z: (S.z0 + S.z1) / 2, hx: .06, hz: (S.z1 - S.z0) / 2, y0: FLOOR_Y - .1, y1: FLOOR2_Y + 1 }, { x: S.x1, z: (S.z0 + S.z1) / 2, hx: .06, hz: (S.z1 - S.z0) / 2, y0: FLOOR_Y - .1, y1: FLOOR2_Y + 1 }, { x: (S.x0 + S.x1) / 2, z: S.z1, hx: (S.x1 - S.x0) / 2, hz: .06, y0: FLOOR2_Y - .3, y1: FLOOR2_Y + 1 });
+  }
+  // porch in front of the door
+  const px = plan.fx; mb.box(px - 1.6, 0, hz + T / 2, px + 1.6, FLOOR_Y * .8, hz + 1.5, f => f === 'py' ? 'porch' : 'found', 1.6);
+  if (style !== 'modern') for (const s of [-1, 1]) mb.box(px + s * 1.45 - .07, FLOOR_Y * .8, hz + 1.35, px + s * 1.45 + .07, 2.55, hz + 1.5, () => trim, 1);
+  roof(mb, plan, hx, hz, yTop + .16);
+  return { parts: mb.build(), colliders, doors: doorList, plan, stair: stairInfo };
+}
+

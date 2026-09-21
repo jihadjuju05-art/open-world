@@ -47,3 +47,5 @@ async def main():
         idx[v['id']] = ext; print(f'{v["n"]:02d} {v["speaker"]:<22} {v["id"]}.{ext}')
     json.dump(idx, open(p, 'w'), indent=0); print(len(idx), 'voices in index')
 asyncio.run(main())
+
+import subprocess; subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'voices_index.py')])

@@ -33,3 +33,5 @@ for n in sorted(plan):
     print(f'{n:02d} {v["speaker"]:<22} {f}  ->  {v["id"]}.{ext}' + (f'  ({d:.1f}s, esperado ~{exp:.1f}s){flag}' if d else ''))
 json.dump(idx, open(idx_path, 'w'), indent=0)
 print(len(idx), 'voices installed of', len(V))
+
+import subprocess; subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'voices_index.py')])
