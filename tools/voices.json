@@ -1,0 +1,191 @@
+[
+ {
+  "n": 1,
+  "id": "f2d8985a",
+  "speaker": "Narrador",
+  "style": "Voz masculina grave, pausada y cálida de narrador de película del oeste, tono épico y melancólico",
+  "text": "Dicen que el oeste no perdona. Yo aprendí que tampoco olvida.",
+  "chars": 61,
+  "prompt": "Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: \"Dicen que el oeste no perdona. Yo aprendí que tampoco olvida.\""
+ },
+ {
+  "n": 2,
+  "id": "a179d3ee",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Hace tres noches, unos hombres encapuchados quemaron el rancho de mi padre, Elías Reyes.",
+  "chars": 88,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Hace tres noches, unos hombres encapuchados quemaron el rancho de mi padre, Elías Reyes.\""
+ },
+ {
+  "n": 3,
+  "id": "2636e8db",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "No dejó más que un medallón y una carta: «Busca al sheriff Vargas. Solo él sabe la verdad».",
+  "chars": 91,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"No dejó más que un medallón y una carta: «Busca al sheriff Vargas. Solo él sabe la verdad».\""
+ },
+ {
+  "n": 4,
+  "id": "6e7b8069",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Así que aquí estoy: Mesa Dorado. Una ciudad de polvo, deudas y promesas rotas.",
+  "chars": 78,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Así que aquí estoy: Mesa Dorado. Una ciudad de polvo, deudas y promesas rotas.\""
+ },
+ {
+  "n": 5,
+  "id": "9e82c548",
+  "speaker": "Amos Reed",
+  "style": "Voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja",
+  "text": "¿Reyes? ¿Tienes su medallón? Entonces es verdad que Elías ha muerto...",
+  "chars": 70,
+  "prompt": "Habla con voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja: \"¿Reyes? ¿Tienes su medallón? Entonces es verdad que Elías ha muerto...\""
+ },
+ {
+  "n": 6,
+  "id": "b6544080",
+  "speaker": "Amos Reed",
+  "style": "Voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja",
+  "text": "Guardaba esta mitad del mapa del Oro Viejo. Cuervo mató por la otra. Llévala a Vargas, y que no te siga nadie.",
+  "chars": 110,
+  "prompt": "Habla con voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja: \"Guardaba esta mitad del mapa del Oro Viejo. Cuervo mató por la otra. Llévala a Vargas, y que no te siga nadie.\""
+ },
+ {
+  "n": 7,
+  "id": "5b6ed092",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Sentí que alguien nos observaba desde los árboles.",
+  "chars": 50,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Sentí que alguien nos observaba desde los árboles.\""
+ },
+ {
+  "n": 8,
+  "id": "39781665",
+  "speaker": "Silas «El Cuervo»",
+  "style": "Voz masculina áspera y amenazante de villano, calmada y cruel, con burla",
+  "text": "Reyes... tienes la misma mirada que tu padre. Él también creyó que podía detenerme.",
+  "chars": 83,
+  "prompt": "Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: \"Reyes... tienes la misma mirada que tu padre. Él también creyó que podía detenerme.\""
+ },
+ {
+  "n": 9,
+  "id": "69330d33",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Vengo por el mapa. Y por lo que hiciste en el rancho.",
+  "chars": 53,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Vengo por el mapa. Y por lo que hiciste en el rancho.\""
+ },
+ {
+  "n": 10,
+  "id": "456702a7",
+  "speaker": "Silas «El Cuervo»",
+  "style": "Voz masculina áspera y amenazante de villano, calmada y cruel, con burla",
+  "text": "Entonces ven a buscarlo. Muchachos... no dejéis nada.",
+  "chars": 53,
+  "prompt": "Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: \"Entonces ven a buscarlo. Muchachos... no dejéis nada.\""
+ },
+ {
+  "n": 11,
+  "id": "2ad128c9",
+  "speaker": "Silas «El Cuervo»",
+  "style": "Voz masculina áspera y amenazante de villano, calmada y cruel, con burla",
+  "text": "Tu padre... también luchó así. Y tampoco supo lo que había en el mapa.",
+  "chars": 70,
+  "prompt": "Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: \"Tu padre... también luchó así. Y tampoco supo lo que había en el mapa.\""
+ },
+ {
+  "n": 12,
+  "id": "09fca3ff",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "La mitad de este mapa señala un lugar que no aparece en ningún plano.",
+  "chars": 69,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"La mitad de este mapa señala un lugar que no aparece en ningún plano.\""
+ },
+ {
+  "n": 13,
+  "id": "3a557424",
+  "speaker": "Narrador",
+  "style": "Voz masculina grave, pausada y cálida de narrador de película del oeste, tono épico y melancólico",
+  "text": "Pero eso es otra historia. Fin del capítulo 1: Polvo y ceniza.",
+  "chars": 62,
+  "prompt": "Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: \"Pero eso es otra historia. Fin del capítulo 1: Polvo y ceniza.\""
+ },
+ {
+  "n": 14,
+  "id": "776af645",
+  "speaker": "Narrador",
+  "style": "Voz masculina grave, pausada y cálida de narrador de película del oeste, tono épico y melancólico",
+  "text": "El medallón de Elías Reyes no era una joya. Era una llave.",
+  "chars": 58,
+  "prompt": "Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: \"El medallón de Elías Reyes no era una joya. Era una llave.\""
+ },
+ {
+  "n": 15,
+  "id": "0694d073",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Vibra contra mi pecho... como si algo, al otro lado, respondiera.",
+  "chars": 65,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Vibra contra mi pecho... como si algo, al otro lado, respondiera.\""
+ },
+ {
+  "n": 16,
+  "id": "2f679357",
+  "speaker": "Kaelith, la Segadora",
+  "style": "Voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso",
+  "text": "Tres veces han venido a buscar lo que guardas. Tres veces las hoces cantaron.",
+  "chars": 77,
+  "prompt": "Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: \"Tres veces han venido a buscar lo que guardas. Tres veces las hoces cantaron.\""
+ },
+ {
+  "n": 17,
+  "id": "d3c6a425",
+  "speaker": "Kaelith, la Segadora",
+  "style": "Voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso",
+  "text": "Tu padre juró que nadie más vendría. Mintió... o tú eres su promesa rota.",
+  "chars": 73,
+  "prompt": "Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: \"Tu padre juró que nadie más vendría. Mintió... o tú eres su promesa rota.\""
+ },
+ {
+  "n": 18,
+  "id": "b5f1a28b",
+  "speaker": "Kaelith, la Segadora",
+  "style": "Voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso",
+  "text": "Empuña tu acero, forastero. Las hoces no preguntan.",
+  "chars": 51,
+  "prompt": "Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: \"Empuña tu acero, forastero. Las hoces no preguntan.\""
+ },
+ {
+  "n": 19,
+  "id": "973c44e4",
+  "speaker": "Kaelith, la Segadora",
+  "style": "Voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso",
+  "text": "El Oro Viejo... nunca fue oro. Es lo que sellamos bajo la montaña.",
+  "chars": 66,
+  "prompt": "Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: \"El Oro Viejo... nunca fue oro. Es lo que sellamos bajo la montaña.\""
+ },
+ {
+  "n": 20,
+  "id": "94aa2d03",
+  "speaker": "Protagonista",
+  "style": "Voz masculina joven adulta, seria y contenida, con rabia y tristeza controladas",
+  "text": "Mi padre lo sabía. Por eso lo mataron.",
+  "chars": 38,
+  "prompt": "Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: \"Mi padre lo sabía. Por eso lo mataron.\""
+ },
+ {
+  "n": 21,
+  "id": "da53f00d",
+  "speaker": "Narrador",
+  "style": "Voz masculina grave, pausada y cálida de narrador de película del oeste, tono épico y melancólico",
+  "text": "Pero eso es otra historia. Fin del capítulo 2: El canto de las hoces.",
+  "chars": 69,
+  "prompt": "Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: \"Pero eso es otra historia. Fin del capítulo 2: El canto de las hoces.\""
+ }
+]

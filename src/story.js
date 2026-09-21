@@ -6,6 +6,9 @@ import * as THREE from 'three';
 const V3 = THREE.Vector3;
 const SAVE = 'openworld.story.v1';
 const ease = t => t * t * (3 - 2 * t);
+// Voice acting: assets/voice/<id>.mp3, id = FNV-1a hash of the subtitle text; only ids listed in assets/voice/index.json are played.
+export const voiceId = text => { let h = 0x811c9dc5; for (const ch of text) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16).padStart(8, '0'); };
+let VOICES = null; const loadVoices = () => VOICES || (VOICES = fetch('assets/voice/index.json').then(r => r.ok ? r.json() : []).then(a => new Set(a)).catch(() => new Set()));
 const $ = id => document.getElementById(id);
 const dirName = (dx, dz) => ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][Math.round(((Math.atan2(dx, -dz) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
 
@@ -21,10 +24,14 @@ export class Cinematics {
   }
   next() {
     this.i++; if (this.i >= this.shots.length) return this.end(); const s = this.shots[this.i]; this.shot = s; this.t = 0; this.text = s.text || ''; this.typed = 0;
-    this.sub.innerHTML = s.text ? `<b>${s.who || ''}</b><span></span>` : ''; this.subSpan = this.sub.querySelector('span'); s.enter?.();
+    this.sub.innerHTML = s.text ? `<b>${s.who || ''}</b><span></span>` : ''; this.subSpan = this.sub.querySelector('span'); s.enter?.(); this.speak(s);
   }
-  skip() { if (!this.active) return; this.i = this.shots.length; this.end(); }
-  end() { this.active = false; this.bars.classList.remove('on'); this.sub.innerHTML = ''; this.camera.fov = this.fov0; this.camera.updateProjectionMatrix(); this.onEnd?.(); const d = this.done; this.done = null; d?.(); }
+  speak(s) {
+    this.stopVoice(); if (!s.text) return; const id = voiceId(s.text), idx = this.i; loadVoices().then(set => { if (!set.has(id) || !this.active || this.i !== idx) return; const a = this.voice = new Audio(`assets/voice/${id}.mp3`); a.volume = .95; a.play().catch(() => { }); });
+  }
+  stopVoice() { if (this.voice) { this.voice.pause(); this.voice = null; } }
+  skip() { if (!this.active) return; this.stopVoice(); this.i = this.shots.length; this.end(); }
+  end() { this.stopVoice(); this.active = false; this.bars.classList.remove('on'); this.sub.innerHTML = ''; this.camera.fov = this.fov0; this.camera.updateProjectionMatrix(); this.onEnd?.(); const d = this.done; this.done = null; d?.(); }
   update(dt) {
     if (!this.active) return; const s = this.shot; this.t += dt; const k = Math.min(1, this.t / s.t), e = ease(k), lerp = (a, b) => a + (b - a) * e;
     this.typed = Math.min(this.text.length, this.typed + dt * 32); if (this.subSpan) this.subSpan.textContent = this.text.slice(0, Math.floor(this.typed));
@@ -32,7 +39,8 @@ export class Cinematics {
     const pos = new V3(at.x + Math.sin(a) * r, at.y + h, at.z + Math.cos(a) * r); pos.y = Math.max(pos.y, this.terrain.height(pos.x, pos.z) + 1.2);
     const focus = new V3(at.x, at.y + (s.look ?? 1.4), at.z), f = this.terrain.clearFraction(focus, pos); if (f < 1) pos.lerpVectors(focus, pos, Math.max(.35, f));      // keep the camera out of walls and trees
     this.camera.position.copy(pos); this.camera.lookAt(at.x, at.y + (s.look ?? 1.4), at.z); if (s.fov) { this.camera.fov = lerp(s.fov[0], s.fov[1]); this.camera.updateProjectionMatrix(); }
-    if (this.t >= s.t + (s.hold ?? .4)) this.next();
+    const talking = this.voice && !this.voice.ended && !this.voice.paused;      // let the line finish (up to 8 s past the planned length)
+    if (this.t >= s.t + (s.hold ?? .4) && !(talking && this.t < s.t + 8)) this.next();
   }
 }
 
@@ -180,7 +188,7 @@ export class Story {
   playBossIntro() {
     const n = this.name();
     this.cine.play([
-      { t: 6, at: 'boss', rel: true, orbit: [7, 4.5, 1.5, 1.7, .6, .1], look: 1.6, fov: [48, 34], who: 'Silas «El Cuervo»', text: `${n} Reyes... tienes la misma mirada que tu padre. Él también creyó que podía detenerme.` },
+      { t: 6, at: 'boss', rel: true, orbit: [7, 4.5, 1.5, 1.7, .6, .1], look: 1.6, fov: [48, 34], who: 'Silas «El Cuervo»', text: 'Reyes... tienes la misma mirada que tu padre. Él también creyó que podía detenerme.' },
       { t: 4.5, at: 'player', orbit: [4, 3.4, 1.7, 1.6, 3.4, 2.9], look: 1.6, fov: [36, 32], who: n, text: 'Vengo por el mapa. Y por lo que hiciste en el rancho.' },
       { t: 4.5, at: 'boss', rel: true, orbit: [4, 2.6, 1.3, 1.9, -.5, -.1], look: 1.7, fov: [34, 28], who: 'Silas «El Cuervo»', text: 'Entonces ven a buscarlo. Muchachos... no dejéis nada.' },
     ], () => { const b = this.enemies.list.find(e => e.boss); if (b) { b.aggro = true; b.state = 'chase'; } });

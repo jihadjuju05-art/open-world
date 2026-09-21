@@ -1,0 +1,65 @@
+GUION DE VOCES PARA LUMINA (Audio) - pega cada linea completa en el cuadro de texto, genera, descarga y guarda como NN.mp3
+Total aprox: ~100 segundos = ~26 puntos
+
+--- 01  (Narrador) ---
+Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: "Dicen que el oeste no perdona. Yo aprendí que tampoco olvida."
+
+--- 02  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Hace tres noches, unos hombres encapuchados quemaron el rancho de mi padre, Elías Reyes."
+
+--- 03  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "No dejó más que un medallón y una carta: «Busca al sheriff Vargas. Solo él sabe la verdad»."
+
+--- 04  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Así que aquí estoy: Mesa Dorado. Una ciudad de polvo, deudas y promesas rotas."
+
+--- 05  (Amos Reed) ---
+Habla con voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja: "¿Reyes? ¿Tienes su medallón? Entonces es verdad que Elías ha muerto..."
+
+--- 06  (Amos Reed) ---
+Habla con voz masculina de anciano buscador de oro, ronca, cansada y nerviosa, en voz baja: "Guardaba esta mitad del mapa del Oro Viejo. Cuervo mató por la otra. Llévala a Vargas, y que no te siga nadie."
+
+--- 07  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Sentí que alguien nos observaba desde los árboles."
+
+--- 08  (Silas «El Cuervo») ---
+Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: "Reyes... tienes la misma mirada que tu padre. Él también creyó que podía detenerme."
+
+--- 09  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Vengo por el mapa. Y por lo que hiciste en el rancho."
+
+--- 10  (Silas «El Cuervo») ---
+Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: "Entonces ven a buscarlo. Muchachos... no dejéis nada."
+
+--- 11  (Silas «El Cuervo») ---
+Habla con voz masculina áspera y amenazante de villano, calmada, cruel y burlona: "Tu padre... también luchó así. Y tampoco supo lo que había en el mapa."
+
+--- 12  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "La mitad de este mapa señala un lugar que no aparece en ningún plano."
+
+--- 13  (Narrador) ---
+Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: "Pero eso es otra historia. Fin del capítulo 1: Polvo y ceniza."
+
+--- 14  (Narrador) ---
+Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: "El medallón de Elías Reyes no era una joya. Era una llave."
+
+--- 15  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Vibra contra mi pecho... como si algo, al otro lado, respondiera."
+
+--- 16  (Kaelith, la Segadora) ---
+Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: "Tres veces han venido a buscar lo que guardas. Tres veces las hoces cantaron."
+
+--- 17  (Kaelith, la Segadora) ---
+Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: "Tu padre juró que nadie más vendría. Mintió... o tú eres su promesa rota."
+
+--- 18  (Kaelith, la Segadora) ---
+Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: "Empuña tu acero, forastero. Las hoces no preguntan."
+
+--- 19  (Kaelith, la Segadora) ---
+Habla con voz femenina etérea, fría y majestuosa de guerrera sobrenatural, lenta, con eco misterioso: "El Oro Viejo... nunca fue oro. Es lo que sellamos bajo la montaña."
+
+--- 20  (Protagonista) ---
+Habla con voz masculina joven, seria y contenida, con rabia y tristeza controladas: "Mi padre lo sabía. Por eso lo mataron."
+
+--- 21  (Narrador) ---
+Narra con voz masculina grave, pausada y cálida de película del oeste, tono épico y melancólico: "Pero eso es otra historia. Fin del capítulo 2: El canto de las hoces."
