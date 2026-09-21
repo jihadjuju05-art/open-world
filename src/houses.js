@@ -141,10 +141,10 @@ export class HouseManager {
     this.toast?.('Has encontrado', got.join(' · ')); this.renderInv();
   }
   sleep() {
-    const f = document.getElementById('fade'); if (!f) return; f.style.opacity = 1; setTimeout(() => { this.sky.set(8); this.combat.hp = this.combat.maxHp; this.combat.stamina = this.combat.maxStamina; f.style.opacity = 0; this.toast?.('Buenos días', 'Has dormido hasta las 08:00'); }, 1400);
+    const f = document.getElementById('fade'); if (!f) return; f.style.opacity = 1; setTimeout(() => { this.sky.set(8); this.combat.hp = this.combat.maxHp; this.combat.stamina = this.combat.maxStamina; f.style.opacity = 0; this.toast?.('Buenos días', 'Has dormido hasta las 08:00'); this.onSlept?.(); }, 1400);
   }
-  renderInv() { if (!this.ui) return; const e = Object.entries(this.inv.items); this.ui.innerHTML = '<h3>INVENTARIO</h3>' + (e.length ? e.map(([n, q]) => `<div class="it"><span>${n}</span><b>×${q}</b>${n === 'Vendaje' || n === 'Pan' || n === 'Manzana' ? `<button data-use="${n}">Usar</button>` : ''}</div>`).join('') : '<p class="tag">Vacío. Registra cajones y armarios.</p>'); this.ui.querySelectorAll('[data-use]').forEach(b => b.onclick = () => this.use(b.dataset.use)); }
-  use(n) { const heal = { Vendaje: 35, Pan: 15, Manzana: 8 }[n]; if (heal && this.inv.take(n)) { this.combat.hp = Math.min(this.combat.maxHp, this.combat.hp + heal); this.toast?.('Has usado ' + n, '+' + heal + ' vida'); this.renderInv(); } }
+  renderInv() { if (!this.ui) return; const e = Object.entries(this.inv.items); this.ui.innerHTML = '<h3>INVENTARIO</h3>' + (e.length ? e.map(([n, q]) => `<div class="it"><span>${n}</span><b>×${q}</b>${n === 'Vendaje' || n === 'Pan' || n === 'Manzana' || n === 'Whisky' ? `<button data-use="${n}">Usar</button>` : ''}</div>`).join('') : '<p class="tag">Vacío. Registra cajones y armarios.</p>'); this.ui.querySelectorAll('[data-use]').forEach(b => b.onclick = () => this.use(b.dataset.use)); }
+  use(n) { if (n === 'Whisky' && this.inv.take(n)) { this.combat.stamina = this.combat.maxStamina; this.toast?.('Un buen trago', 'Resistencia recuperada'); this.renderInv(); return; } const heal = { Vendaje: 35, Pan: 15, Manzana: 8 }[n]; if (heal && this.inv.take(n)) { this.combat.hp = Math.min(this.combat.maxHp, this.combat.hp + heal); this.toast?.('Has usado ' + n, '+' + heal + ' vida'); this.renderInv(); } }
   toggleInv() { if (!this.ui) return; this.ui.classList.toggle('hidden'); if (!this.ui.classList.contains('hidden')) this.renderInv(); }
 }
 const FIX = {};             // per-file rotation fixes for models whose front is not +Z

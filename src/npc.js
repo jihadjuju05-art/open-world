@@ -9,7 +9,7 @@ import { routineStep, makeFamily, HOME_LINES } from './routines.js';
 const FIRST = ['Elías', 'Gideon', 'Ezra', 'Caleb', 'Isaac', 'Bruno', 'Hugo', 'Ramón', 'Félix', 'Ignacio', 'Ulises', 'Wyatt', 'Clay', 'Abel', 'Otis', 'Lucas', 'Jonás', 'Mario', 'Dante', 'Casio', 'Emilio', 'Reyes', 'Ciro', 'Bartolo'];
 const LAST = ['Ortega', 'Salas', 'Reyes', 'Vega', 'Cruz', 'Bravo', 'Luna', 'Rojas', 'Castro', 'Prado', 'Mora', 'Ledesma'];
 const hh = (a, b, c = 0) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 1274126177); h = Math.imul(h ^ (h >>> 13), 1103515245); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-const ROLE_BY_TYPE = [['sheriff', 'banquero', 'herrero', 'posadero', 'comerciante', 'granjero', 'cazador', 'viajero', 'buscador de oro'], ['herrero', 'posadero', 'comerciante', 'granjero', 'pastor', 'cazador'], ['granjero', 'pastor', 'pescador', 'cazador'], ['granjero', 'pastor'], ['viajero', 'cazador', 'buscador de oro']];
+const ROLE_BY_TYPE = [['sheriff', 'banquero', 'herrero', 'posadero', 'comerciante', 'médico', 'granjero', 'cazador', 'viajero', 'buscador de oro'], ['herrero', 'posadero', 'comerciante', 'médico', 'granjero', 'pastor', 'cazador'], ['granjero', 'pastor', 'pescador', 'cazador'], ['granjero', 'pastor'], ['viajero', 'cazador', 'buscador de oro']];
 
 const DIRS = ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'];
 const dirName = (dx, dz) => DIRS[Math.round(((Math.atan2(dx, -dz) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
@@ -33,7 +33,9 @@ export const NPC_DEFS = [
 ];
 
 // Lines are written per trade so what an NPC says always fits who they are. {town} is replaced by the settlement name.
+const SERVICE = { herrero: ['Ver la herrería (mejorar / comprar armas)', 'smith'], comerciante: ['Ver la tienda (comprar / vender)', 'store'], médico: ['Consultar al doctor', 'doctor'], banquero: ['Usar el banco', 'bank'], posadero: ['Jugar a los dados', 'dice'] };
 const LINES = {
+  médico: { greet: ['Si sangra, pase. Si no, también.', 'Buenos días. ¿Alguna herida que deba ver?'], trade: 'Curo heridas, vendo vendajes y tónicos. Aquí hay mucho trabajo.', rumors: ['Los bandidos dejan más heridos de los que puedo atender.', 'Un tónico a tiempo salva más vidas que un cirujano tarde.', 'La gente de aquí aguanta mucho, pero no es de hierro.'] },
   sheriff: { greet: ['Buenas. Aquí en {town} la ley soy yo.', 'Mantén las manos a la vista y serás bienvenido.', 'Si buscas problemas, este no es el sitio.'], trade: 'Vigilo {town} y los caminos de los alrededores. Últimamente hay demasiados bandidos.',
     rumors: ['Hay bandidos acampando fuera de los pueblos. No me alcanzan los ayudantes.', 'Encontré huellas de caballos sin herrar junto al camino. No son de por aquí.', 'Quien robe en {town} acaba en el calabozo, sea quien sea.'] },
   banquero: { greet: ['Bienvenido a {town}. ¿Viene a depositar o a pedir prestado?', 'Un cliente. Qué agradable.'], trade: 'Guardo el dinero de {town}. Y hago preguntas sobre el que lo pide.', rumors: ['Los bandidos vigilan las diligencias que salen cargadas. Alguien les da los horarios.', 'El oro del río ya no llega como antes.', 'Dicen que hay un tesoro escondido en una ruina al pie de las montañas.'] },
@@ -160,7 +162,7 @@ export class NPCManager {
     if (npc.def.storyKey && this.story) { const n = this.story.dialogue(npc); if (n !== undefined && (n || npc.def.storyKey === 'amos')) return n; }
     const d = npc.def, hello = npc.met <= 1 ? pick(d.greet) : `Otra vez tú. ${pick(['¿Necesitas algo?', '¿Qué se te ofrece?', 'Dime.'])}`;
     return { text: hello, options: [['¿Qué hay por aquí?', () => this.aroundNode(npc)], ['¿Dónde hay agua?', () => this.waterNode(npc)], [`¿Qué haces por aquí, ${d.role}?`, () => ({ text: d.trade, options: this.backOptions(npc) })],
-      ['Cuéntame un rumor.', () => this.rumorNode(npc)], ['¿Qué lugar es este?', () => this.placeNode(npc)], ['¿Qué hora es?', () => this.timeNode(npc)], ['Adiós.', () => null]] };
+      ...(SERVICE[d.role] && this.shop ? [[SERVICE[d.role][0], () => { const k = SERVICE[d.role][1]; setTimeout(() => this.shop.open(k, npc), 40); return null; }]] : []), ['Cuéntame un rumor.', () => this.rumorNode(npc)], ['¿Qué lugar es este?', () => this.placeNode(npc)], ['¿Qué hora es?', () => this.timeNode(npc)], ['Adiós.', () => null]] };
   }
   backOptions(npc) { return [['Tengo otra pregunta.', () => this.root(npc)], ['Adiós.', () => null]]; }
   aroundNode(npc) {

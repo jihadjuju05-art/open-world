@@ -56,7 +56,7 @@ export class PlayerCombat {
   constructor({ player, terrain, getTargets, onEvent }) {
     Object.assign(this, { player, terrain, getTargets, onEvent }); this.reset(); this.drawn = false; this.shake = 0; this.hitstop = 0; this.flash = 0; this.buffer = null; this.lmb = null; this.emote = null; this.alive = true; this.kills = 0;
   }
-  reset() { this.hp = this.maxHp = TUNING.player.hp; this.stamina = this.maxStamina = TUNING.player.stamina; this.state = 'free'; this.t = 0; this.combo = 0; this.hitSet = new Set(); this.iframes = 0; this.blockT = 0; this.blocking = false; this.deadT = 0; this.stagT = 0; this.regenDelay = 0; }
+  reset() { this.hp = this.maxHp = TUNING.player.hp + (this.gearHp || 0); this.stamina = this.maxStamina = TUNING.player.stamina + (this.gearSta || 0); this.state = 'free'; this.t = 0; this.combo = 0; this.hitSet = new Set(); this.iframes = 0; this.blockT = 0; this.blocking = false; this.deadT = 0; this.stagT = 0; this.regenDelay = 0; }
   get body() { return this.player.gltf; }
   get busy() { return this.state !== 'free' && this.state !== 'block'; }
   moveScale() { return this.state === 'free' ? (this.emote ? 0 : 1) : 0; }      // emotes and blocking keep the character in place
@@ -88,7 +88,7 @@ export class PlayerCombat {
     if (!heavy) this.combo = (this.combo + 1) % LIGHT.length; else this.combo = 0;
     const tgt = this.lockT = this.nearestTarget(5.5, 1.05); if (tgt) this.player.yaw = Math.atan2(tgt.pos.x - this.player.pos.x, tgt.pos.z - this.player.pos.z);       // soft lock-on
     else if (this.camYaw !== undefined) this.player.yaw = this.camYaw + Math.PI;
-    this.body.startAction(spec.clip, { rate: spec.rate, fade: .07 }); this.onEvent?.('swing', spec);
+    this.body.startAction(spec.clip, { rate: spec.rate * (this.gear?.rate || 1), fade: .07 }); this.onEvent?.('swing', spec);
   }
   nearestTarget(range, cone) {
     let best = null, bd = range, P = this.player.pos, f = this.camYaw !== undefined ? this.camYaw + Math.PI : this.player.yaw;
@@ -105,7 +105,7 @@ export class PlayerCombat {
       const cost = info.dmg * (info.heavy ? TUNING.block.heavyCost : TUNING.block.lightCost); this.stamina -= cost; this.regenDelay = 1.2; this.hp -= info.dmg * TUNING.block.chip; this.shake = .25; this.onEvent?.('block');
       if (this.stamina <= 0) { this.stamina = 0; this.enterStagger(true); this.onEvent?.('guardbreak'); } return 'blocked';
     }
-    this.hp -= info.dmg; this.flash = 1; this.shake = info.heavy ? .8 : .45; this.hitstop = .07; this.regenDelay = 2; this.onEvent?.('hurt', info);
+    this.hp -= info.dmg * (1 - (this.gear?.armor || 0)); this.flash = 1; this.shake = info.heavy ? .8 : .45; this.hitstop = .07; this.regenDelay = 2; this.onEvent?.('hurt', info);
     if (this.hp <= 0) { this.die(); return 'dead'; }
     this.enterStagger(!!info.heavy); return 'hit';
   }
@@ -149,7 +149,7 @@ export class PlayerCombat {
     const a = new V3(), c = new V3(); const targets = this.getTargets();
     for (const t of targets) {
       if (t.dead || this.hitSet.has(t.id)) continue; const sp = t.spheres?.(); if (!sp) continue; const h = bladeHit(this.body, sp, a, c) || arcHit(this.player.pos, this.player.yaw, sp); if (!h) continue;
-      this.hitSet.add(t.id); const dmg = Math.round(spec.dmg * h.mult); const res = t.takeHit({ dmg, heavy: !!spec.heavy, from: this.player.pos.clone(), attacker: this.player, part: h.part, attackerId: 'me' });
+      this.hitSet.add(t.id); const dmg = Math.round(spec.dmg * h.mult * (this.gear?.dmg || 1)); const res = t.takeHit({ dmg, heavy: !!spec.heavy, from: this.player.pos.clone(), attacker: this.player, part: h.part, attackerId: 'me' });
       if (res === 'hit' || res === 'dead') { this.hitstop = spec.heavy ? .1 : .06; this.shake = Math.max(this.shake, spec.heavy ? .5 : .25); this.onEvent?.('hitdone', { target: t, part: h.part, dmg, res }); if (res === 'dead') this.kills++; }
       else if (res === 'blocked' || res === 'parried') { this.onEvent?.('blocked'); if (res === 'parried') this.enterStagger(true); }
     }

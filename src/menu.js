@@ -1,5 +1,6 @@
 // In-game pause menu (Esc): resume, settings (graphics / game / audio / diagnostics), controls, exit.
 import { PRESETS, applyPreset, saveSettings, DEFAULTS } from './settings.js';
+import { fmtPlay } from './save.js';
 
 const el = (tag, props = {}, ...kids) => {
   const e = document.createElement(tag);
@@ -24,17 +25,30 @@ export class GameMenu {
   render() {
     this.root.replaceChildren();
     const box = el('div', { class: 'menu-box' });
-    if (this.page === 'main') this.renderMain(box); else if (this.page === 'settings') this.renderSettings(box); else if (this.page === 'controls') this.renderControls(box); else if (this.page === 'exit') this.renderExit(box);
+    if (this.page === 'main') this.renderMain(box); else if (this.page === 'saves') this.renderSaves(box); else if (this.page === 'settings') this.renderSettings(box); else if (this.page === 'controls') this.renderControls(box); else if (this.page === 'exit') this.renderExit(box);
     this.root.append(box);
   }
   renderMain(b) {
     b.append(el('h1', {}, 'PAUSA'), el('div', { class: 'sub' }, 'Open World'),
-      this.btn('Continuar', () => this.close(), 'primary'), this.btn('Mapa  (M)', () => { this.close(); this.h.onMap?.(); }), this.btn('Ajustes', () => { this.page = 'settings'; this.render(); }),
+      this.btn('Continuar', () => this.close(), 'primary'), this.btn('Mapa  (M)', () => { this.close(); this.h.onMap?.(); }), this.btn('Guardar / cargar partida', () => { this.page = 'saves'; this.render(); }), this.btn('Ajustes', () => { this.page = 'settings'; this.render(); }),
       this.btn('Controles', () => { this.page = 'controls'; this.render(); }), this.btn('Salir del juego', () => { this.page = 'exit'; this.render(); }, 'danger'));
   }
   renderExit(b) {
-    b.append(el('h1', {}, '¿Salir del juego?'), el('div', { class: 'sub' }, 'Se guardan tus ajustes. La partida no se guarda todavía.'),
+    b.append(el('h1', {}, '¿Salir del juego?'), el('div', { class: 'sub' }, 'Se guardan tus ajustes. Guarda la partida antes si quieres conservar tu progreso.'),
       this.btn('Sí, salir', () => { this.h.onExit?.(); }, 'danger'), this.btn('Volver', () => { this.page = 'main'; this.render(); }));
+  }
+  renderSaves(b) {
+    const S = this.h.saves, started = this.h.isStarted?.(); b.classList.add('wide'); if (!document.getElementById('savecss')) document.head.append(Object.assign(document.createElement('style'), { id: 'savecss', textContent: '.sv{display:flex;gap:12px;align-items:center;padding:10px;border:1px solid #4b3d26;margin:8px 0;background:#1c150d}.sv img,.sv .ph{width:112px;height:63px;object-fit:cover;background:#0d0a06;flex:none;border:1px solid #3b2e1c}.sv .t{flex:1;font:13px system-ui,sans-serif;color:#d9c9a0}.sv .t b{display:block;font:16px Georgia,serif;color:#e6c98a;margin-bottom:3px}.sv .bt{display:flex;flex-direction:column;gap:5px}.sv .bt button{padding:6px 12px;background:#3b2e1c;border:1px solid #6b5630;color:#f1e6cc;cursor:pointer;font:12px system-ui,sans-serif}.sv .bt button:hover{background:#6b4e1e}' }));
+    b.append(el('h1', {}, 'PARTIDAS'), el('div', { class: 'sub' }, started ? 'Guarda o carga tu progreso (posición, vida, dinero, inventario, mejoras e historia)' : 'Elige la partida que quieres continuar'));
+    for (const { id, meta } of S.slots()) {
+      const d = meta ? new Date(meta.ts).toLocaleString('es') : '', btns = [];
+      if (started && id !== 'auto') btns.push(el('button', { onclick: () => { S.write(id); this.h.onSaved?.(id); this.render(); } }, meta ? 'Sobrescribir' : 'Guardar aquí'));
+      if (meta) btns.push(el('button', { onclick: () => { this.h.onLoad?.(id); } }, 'Cargar'));
+      if (meta && id !== 'auto') btns.push(el('button', { onclick: () => { if (confirm('¿Borrar esta partida?')) { S.remove(id); this.render(); } } }, 'Borrar'));
+      b.append(el('div', { class: 'sv' }, meta?.thumb ? el('img', { src: meta.thumb }) : el('div', { class: 'ph' }),
+        el('div', { class: 't' }, el('b', {}, id === 'auto' ? 'Autoguardado' : 'Ranura ' + id), meta ? `${meta.name || 'Forastero'} · ${meta.region || '—'}` : 'Vacía', meta ? el('br') : null, meta ? `◎ ${meta.money ?? 0} · ${fmtPlay(meta.play)} · ${d}` : ''), el('div', { class: 'bt' }, btns)));
+    }
+    b.append(el('div', { class: 'foot' }, this.btn('Volver', () => { if (started) { this.page = 'main'; this.render(); } else this.close(); }, 'primary')));
   }
   btn(label, fn, cls = '') { return el('button', { class: 'mbtn ' + cls, onclick: fn, type: 'button' }, label); }
 
@@ -93,7 +107,7 @@ export class GameMenu {
       el('div', { class: 'tag' }, 'Si CPU > 14 ms el límite es el procesador o el código; si GPU > 14 ms el límite es la tarjeta: baja calidad, sombras o distancia.'));
   }
   renderControls(b) {
-    const rows = [['W A S D', 'Mover'], ['Shift', 'Correr'], ['C', 'Caminar'], ['Espacio', 'Saltar'], ['Ratón', 'Cámara (clic para capturar)'], ['Rueda', 'Zoom de cámara'], ['M', 'Mapa'], ['Esc', 'Pausa / menú'], ['[  ]', 'Cambiar la hora'], ['P', 'Pausar el tiempo'], ['G', 'IK de pies on/off'], ['H', 'Ocultar ayuda']];
+    const rows = [['W A S D', 'Mover'], ['Shift', 'Correr'], ['C', 'Caminar'], ['Espacio', 'Saltar'], ['Ratón', 'Cámara (clic para capturar)'], ['Rueda', 'Zoom de cámara'], ['R', 'Sacar / guardar la espada'], ['Clic izq.', 'Atacar (mantén: golpe fuerte)'], ['Clic der.', 'Bloquear (justo antes del golpe = parada)'], ['V', 'Esquivar'], ['E', 'Hablar / usar / montar / abrir'], ['Q', 'Llamar al caballo'], ['I', 'Inventario'], ['J', 'Diario de misiones'], ['M', 'Mapa'], ['1-6', 'Emociones'], ['Esc', 'Pausa / menú'], ['[  ]', 'Cambiar la hora'], ['P', 'Pausar el tiempo'], ['H', 'Ocultar ayuda']];
     b.append(el('h1', {}, 'CONTROLES'), el('div', { class: 'keys' }, rows.map(([k, v]) => el('div', { class: 'kr' }, el('kbd', {}, k), el('span', {}, v)))), this.btn('Volver', () => { this.page = 'main'; this.render(); }, 'primary'));
   }
 }

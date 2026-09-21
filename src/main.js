@@ -17,6 +17,8 @@ import { EnemyManager } from './enemies.js';
 import { Cinematics, Story } from './story.js';
 import { Multiplayer } from './net.js';
 import { HouseManager } from './houses.js';
+import { Economy } from './economy.js';
+import { SaveManager } from './save.js';
 import { setTownData } from './housegen.js';
 import { PlayerHorse, DEFAULT_HORSE } from './horse.js';
 import { DialogueUI } from './dialogue_ui.js';
@@ -87,7 +89,7 @@ const respawnPoint = () => { const P = player.pos, s = terrain.hf.plan().settlem
 let enemies = null;
 const combat = new PlayerCombat({ player, terrain, getTargets: () => enemies ? enemies.targets.concat(window.__game?.net?.pvpTargets?.() || []) : [], onEvent: (ev, data) => {
   if (ev === 'hurt') ambience.footstep?.(0, 1);
-  if (ev === 'died') $('deadscr').classList.remove('hidden');
+  if (ev === 'died') { $('deadscr').classList.remove('hidden'); economy.deathPenalty(); }
   if (ev === 'needRespawn') { $('deadscr').classList.add('hidden'); combat.respawn(respawnPoint()); }
   window.__game?.net?.combatEvent?.(ev, data);
 } });
@@ -99,13 +101,19 @@ let story = null;
 const cine = new Cinematics({ camera, terrain, player, resolve: a => story.resolve(a), onStart: () => { inDialogue = true; keys.clear(); document.body.classList.add('cinema'); }, onEnd: () => { inDialogue = false; document.body.classList.remove('cinema'); } });
 story = new Story({ plan: terrain.hf.plan(), terrain, player, npcs, enemies, combat, worldMap, cine, getName: () => charBody?.cfg?.name, toast: showToast });
 houses.bind({ player, combat, camera, toast: showToast });
-if (npcs) { npcs.story = story; npcs.houses = houses; } if (enemies) enemies.onKill = e => story.onKill(e);
+const economy = new Economy({ inv: houses.inv, combat, toast: showToast, sword: (c, l) => charBody?.setBlade?.(c, l), hooks: { onOpen: () => { inDialogue = true; document.exitPointerLock?.(); keys.clear(); }, onClose: () => { inDialogue = false; } } });
+if (npcs) { npcs.story = story; npcs.houses = houses; npcs.shop = economy; } if (enemies) enemies.onKill = e => { story.onKill(e); economy.reward(e); };
+let lastRegion = '', pendingChunks = 0, lastAutoT = 0;
+function captureThumb() { try { renderer.render(scene, camera); const c = document.createElement('canvas'); c.width = 192; c.height = 108; c.getContext('2d').drawImage(renderer.domElement, 0, 0, 192, 108); return c.toDataURL('image/jpeg', .55); } catch { return null; } }
+const save = new SaveManager({ player, terrain, sky, combat, houses, economy, story, cine, net: null, toast: showToast, getName: () => charBody?.cfg?.name || 'Forastero', getRegion: () => lastRegion, getPlay: () => gameTime, started: () => started, isPaused: () => paused, capture: captureThumb });
+houses.onSlept = () => save.auto('Has dormido'); story.onStage = () => setTimeout(() => save.auto('Progreso de la historia'), 2500);
 
 // ---------- multiplayer ----------
 const chatin = $('chatin'), chatlog = $('chatlog');
 const net = new Multiplayer({ scene, player, assets: charAssets, camera, worldMap, combat, enemies, getLook: () => charBody?.cfg || {}, onStatus: (t, chat) => {
   if (!chat) $('mp-status').textContent = t; const d = document.createElement('div'); d.textContent = (chat ? '' : '🌐 ') + t; chatlog.append(d); setTimeout(() => d.remove(), chat ? 12000 : 6000); while (chatlog.children.length > 7) chatlog.firstChild.remove(); } });
 if (enemies) { enemies.onPuppetHit = (e, info) => net.puppetHit(e, info); enemies.extraTargets = () => net.role === 'host' ? net.remoteTargets() : []; }
+save.c.net = net;
 $('t-mp').onclick = () => { $('mp').classList.remove('hidden'); };
 $('mp-close').onclick = () => $('mp').classList.add('hidden');
 $('mp-host').onclick = async () => { const c = await net.host(); if (c) $('mp-code').value = c; };
@@ -134,7 +142,7 @@ let paused = true, started = false, lastFps = 60, cpuMs = 0;
 const hasSavedLook = !!loadSavedLook();
 const menu = new GameMenu(settings, {
   onOpen: () => { paused = true; }, onClose: () => { if (!worldMap.bigOpen) paused = !started; if (!started) $('title').classList.remove('hidden'); },
-  onChange: applySettings, onMap: () => openMap(), blockEsc: () => worldMap.bigOpen,
+  onChange: applySettings, onMap: () => openMap(), blockEsc: () => worldMap.bigOpen || economy.blockEsc, saves: save, isStarted: () => started, onLoad: id => loadGame(id), onSaved: () => showToast('Partida guardada', 'Ranura guardada'),
   onExit: () => { try { window.close(); } catch { } document.body.append(Object.assign(document.createElement('div'), { id: 'exitscreen', innerHTML: '<h2>HAS SALIDO DEL JUEGO</h2><button class="mbtn primary" style="width:260px" onclick="location.reload()">Volver a jugar</button>' })); exited = true; ambience.ctx?.suspend?.(); },
   getDiag: () => ({ gpu: gpuName, software: softwareGL, fps: lastFps, cpu: cpuMs, gpu_ms: gpuMs, res: ratio, calls: renderer.info.render.calls, tris: renderer.info.render.triangles, chunks: terrain.chunks.size, mem: `${renderer.info.memory.geometries} / ${renderer.info.memory.textures}` }),
 });
@@ -143,10 +151,20 @@ const creator = charAssets ? new CharacterCreator($('creator'), charAssets, cfg 
   if (cfg) { charBody.setConfig(cfg); player.applyLook(); horse.setLook(cfg.horse || {}); }
   $('title').classList.remove('hidden');
 }) : null;
+function beginPlay() { $('title').classList.add('hidden'); paused = false; started = true; story.start(); canvas.requestPointerLock?.(); ambience.start(); }
+// Loads a save: teleports, restores the state and waits for the terrain around the new position before revealing it.
+async function loadGame(id) {
+  const d = save.read(id); if (!d) return; const wasOpen = menu.open; if (wasOpen) menu.close(); $('title').classList.add('hidden'); const f = $('fade'); f.style.opacity = 1; await new Promise(r => setTimeout(r, 450));
+  save.apply(d); camYaw = (d.pos.yaw || 0) - Math.PI; paused = true; let calm = 0; for (let i = 0; i < 160 && calm < 6; i++) { await new Promise(r => setTimeout(r, 60)); calm = pendingChunks === 0 ? calm + 1 : 0; }
+  if (!started) beginPlay(); else { paused = false; canvas.requestPointerLock?.(); } f.style.opacity = 0; showToast('Partida cargada', d.region || '');
+}
 function showTitle() {
   const t = $('title'); t.classList.remove('hidden');
   $('t-name').textContent = charBody ? charBody.cfg.name || 'Forastero' : '';
-  $('t-play').onclick = () => { t.classList.add('hidden'); paused = false; started = true; story.start(); canvas.requestPointerLock?.(); ambience.start(); };
+  const last = save.latest(); if (!$('t-cont')) { const mk = (id, label) => Object.assign(document.createElement('button'), { id, className: 'mbtn', type: 'button', textContent: label }), play = $('t-play'); play.before(mk('t-cont', 'Continuar')); play.after(mk('t-load', 'Cargar partida')); }
+  $('t-cont').classList.toggle('hidden', !last); $('t-load').classList.toggle('hidden', !last); $('t-cont').classList.add('primary'); $('t-play').classList.toggle('primary', !last); $('t-play').textContent = last ? 'Nueva partida' : 'Jugar';
+  $('t-cont').onclick = () => loadGame(save.latest().id); $('t-load').onclick = () => { t.classList.add('hidden'); menu.show('saves'); };
+  $('t-play').onclick = () => { if (last && !confirm('¿Empezar una partida nueva? Tus ranuras guardadas se conservan, pero el progreso actual se reinicia.')) return; if (last) save.newGame(); beginPlay(); };
   $('t-char').onclick = () => { if (!creator) return; t.classList.add('hidden'); creator.cfg = { ...creator.cfg, ...charBody.cfg }; creator.open(); };
   $('t-set').onclick = () => { t.classList.add('hidden'); menu.show(); };
   if (!hasSavedLook && creator) $('t-char').click();      // first launch: create the character first
@@ -184,7 +202,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('blur', () => keys.clear());
 canvas.addEventListener('click', () => { if (!paused) { canvas.requestPointerLock?.(); ambience.start(); } });
-document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && started && !menu.open && !worldMap.bigOpen) menu.show(); });   // Esc while playing opens the menu
+document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && started && !menu.open && !worldMap.bigOpen && !inDialogue && !economy.isOpen) menu.show(); });   // Esc while playing opens the menu
 addEventListener('mousemove', e => { if (document.pointerLockElement === canvas && !paused) { camYaw -= e.movementX * .0025 * settings.sens; camPitch = Math.max(-.35, Math.min(1.25, camPitch + e.movementY * .0025 * settings.sens * (settings.invertY ? -1 : 1))); } });
 canvas.addEventListener('wheel', e => { if (!paused) { camDist = Math.max(2.2, Math.min(14, camDist * (1 + Math.sign(e.deltaY) * .08))); e.preventDefault(); } }, { passive: false });
 addEventListener('resize', resize);
@@ -196,7 +214,7 @@ updateEnv();
 
 // ---------- frame ----------
 let orbitT = 0; const camPos = new THREE.Vector3(), lookAt = new THREE.Vector3(), skyCol = new THREE.Color();
-let lastRegion = '', fxT = 0, fpsAcc = 0, fpsN = 0, hudT = 0, gameTime = 0, adaptT = 0, slowT = 0, fastT = 0, ready = false, loadT = 0;
+let fxT = 0, fpsAcc = 0, fpsN = 0, hudT = 0, gameTime = 0, adaptT = 0, slowT = 0, fastT = 0, ready = false, loadT = 0;
 terrain.update(player.pos.x, player.pos.z, 8);
 function frame(dt) {
   const t0 = performance.now(); dt = Math.min(dt, .05); if (combat.hitstop > 0) dt *= .1; fpsAcc += dt; fpsN++;
@@ -220,12 +238,12 @@ function frame(dt) {
     const day = Math.max(0, Math.min(1, sky.uniforms.sunDir.value.y * 3 + .3));
     birds.update(dt, gameTime, player.pos, day);
     npcs?.update(dt); enemies?.update(cine.active ? 0 : dt, dt); story.update(dt); houses.update(dt); dialogue.tick(dt); animals.update(dt); net.update(dt); if (net.active) worldMap.markers = (worldMap.markers || []).concat(net.markers()); if (horse.near && !npcs?.nearest) dialogue.setPrompt(`E — Montar a ${horse.look.name}`); else if (horse.mounted) dialogue.setPrompt('E — Desmontar'); else if (houses.target && !npcs?.nearest) dialogue.setPrompt('E — ' + houses.target.label);
-    if (started) { const rg0 = worldMap.regionAt(player.pos.x, player.pos.z), stt = terrain.hf.plan().settlementAt(player.pos.x, player.pos.z), inTown = stt && stt.d < .95, rg = inTown ? { name: stt.s.name } : rg0; if (rg.name !== lastRegion) { lastRegion = rg.name; const t = $('toast'); t.innerHTML = '<small>' + (inTown ? typeName(stt.s.type) : 'Entrando en') + '</small>' + rg.name; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 4200); } }
+    if (started) { const rg0 = worldMap.regionAt(player.pos.x, player.pos.z), stt = terrain.hf.plan().settlementAt(player.pos.x, player.pos.z), inTown = stt && stt.d < .95, rg = inTown ? { name: stt.s.name } : rg0; if (rg.name !== lastRegion) { lastRegion = rg.name; if (inTown) save.auto('Entraste en ' + rg.name); const t = $('toast'); t.innerHTML = '<small>' + (inTown ? typeName(stt.s.type) : 'Entrando en') + '</small>' + rg.name; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 4200); } }
     if (player.depth > .1 && player.speed > .25) { fxT -= dt; if (fxT <= 0) { fxT = .22 / (1 + player.speed * .35); const a = Math.random() * 6.283, r = player.swimming ? .5 : .28; fx.ring(player.pos.x + Math.cos(a) * r, player.pos.z + Math.sin(a) * r, 1.0 + Math.min(1, player.depth) * .9, 1.4, .5); } }
-    fx.update(dt);
+    fx.update(dt); if (started && gameTime - lastAutoT > 240) { lastAutoT = gameTime; save.auto('Autoguardado'); }
     if (Math.floor(gameTime * 4) !== Math.floor((gameTime - dt) * 4)) ambience.update(.25, { water: terrain.waterNear(player.pos.x, player.pos.z), hour: sky.hour, speed: player.speed });
   }
-  const pending = terrain.update(player.pos.x, player.pos.z);
+  const pending = terrain.update(player.pos.x, player.pos.z); pendingChunks = pending;
   if (!ready) {
     loadT = Math.min(1, terrain.chunks.size / 24); $('loadbar').style.width = (loadT * 100) + '%';
     if (terrain.chunks.size >= 24) { ready = true; $('loading').classList.add('done'); setTimeout(() => $('loading').remove(), 800); showTitle(); }
@@ -264,4 +282,4 @@ let last = performance.now(), exited = false;
   const cap = settings.fpsCap; if (cap <= 240 && now - last < 1000 / cap - 1.5) return;      // user fps limit
   frame((now - last) / 1000); last = now;
 })(last);
-window.__game = { houses, story, cine, combat, enemies, net, horse, animals, player, terrain, sky, camera, scene, keys, renderer, birds, ambience, settings, menu, worldMap, npcs, dialogue, applySettings, tick: (dt = 1 / 60) => frame(dt), setCam: (y, p, d) => { camYaw = y; camPitch = p; camDist = d; }, get ratio() { return ratio; }, get paused() { return paused; } };
+window.__game = { economy, save, houses, story, cine, combat, enemies, net, horse, animals, player, terrain, sky, camera, scene, keys, renderer, birds, ambience, settings, menu, worldMap, npcs, dialogue, applySettings, tick: (dt = 1 / 60) => frame(dt), setCam: (y, p, d) => { camYaw = y; camPitch = p; camDist = d; }, get ratio() { return ratio; }, get paused() { return paused; } };

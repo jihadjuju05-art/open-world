@@ -112,7 +112,7 @@ export class GltfBody {
     attach('pelvis', beltRig(), [0, .1, 0]);
     if (c.holster) attach('pelvis', holsterRig(), [.17, .04, .02], [0, 0, 0]);
     if (c.rifle) attach('spine_03', rifleRig(), [-.04, -.02, -.17], [0, 0, .95], .78);
-    this.sword = swordMesh(); this.acc.push(this.sword); this.setDrawn(!!this.drawn);
+    this.sword = swordMesh(); this.acc.push(this.sword); this.styleBlade(); this.setDrawn(!!this.drawn);
     this.play(this.cfg.states.idle, 0);
   }
   // Skin tone (multiplies the skin textures; >1 lightens) and hair/beard colour.
@@ -135,10 +135,13 @@ export class GltfBody {
   }
   setConfig(patch) { Object.assign(this.cfg, patch); this.build(); }
   // Sword in the right hand (drawn) or sheathed on the left hip. HAND_POSE is tuned to the rig so the blade points out of the fist.
+  // Blade look of the equipped weapon (colour + length factor); kept across rebuilds of the body.
+  setBlade(color, len = 1) { this.bladeStyle = { color, len }; this.styleBlade(); this.setDrawn(!!this.drawn); }
+  styleBlade() { const s = this.sword, b = this.bladeStyle; if (!s || !b) return; s.traverse(o => { if (o.isMesh && o.geometry?.type === 'BoxGeometry' && o.geometry.parameters.height > .5) { o.material = o.material.clone(); o.material.color.setHex(b.color); if (b.color === 0x7ff5e6) { o.material.emissive = new THREE.Color(0x2fd8c8); o.material.emissiveIntensity = .9; } } }); }
   setDrawn(on) {
     this.drawn = on; const s = this.sword; if (!s) return; s.parent?.remove(s);
-    if (on) { const h = this.bones.hand_r; if (!h) return; const P = SWORD_HAND; s.position.set(...P.pos); s.rotation.set(...P.rot); s.scale.setScalar(1); h.add(s); }
-    else { const p = this.bones.pelvis; if (!p) return; s.position.set(-.2, -.06, .02); s.rotation.set(0, 0, 2.05); s.scale.setScalar(.9); p.add(s); }
+    if (on) { const h = this.bones.hand_r; if (!h) return; const P = SWORD_HAND; s.position.set(...P.pos); s.rotation.set(...P.rot); s.scale.setScalar(1); h.add(s); s.scale.setScalar(this.bladeStyle?.len || 1); }
+    else { const p = this.bones.pelvis; if (!p) return; s.position.set(-.2, -.06, .02); s.rotation.set(0, 0, 2.05); s.scale.setScalar(.9 * (this.bladeStyle?.len || 1)); p.add(s); }
   }
   swordSegment(a, b) { const s = this.sword; if (!s) return false; s.updateWorldMatrix(true, false); a.copy(s.userData.base).applyMatrix4(s.matrixWorld); b.copy(s.userData.tip).applyMatrix4(s.matrixWorld); return true; }
   // One-shot actions (attacks, dodge, hit reactions) override the locomotion graph until endAction().

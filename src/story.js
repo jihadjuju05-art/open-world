@@ -62,6 +62,12 @@ export class Story {
   }
   save() { try { localStorage.setItem(SAVE, JSON.stringify({ stage: this.stage, kills: this.kills, log: this.log, flags: this.flags })); } catch { } }
   load() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); if (s) { this.stage = s.stage; this.kills = s.kills || 0; this.log = s.log || []; this.flags = s.flags || {}; if (this.stage === 'free' && !this.flags.ch2) { this.stage = 'ch2_go'; this.flags.ch2 = true; this.log.push('El medallón de mi padre empezó a brillar.'); } } } catch { } }
+  snapshot() { return { stage: this.stage, kills: this.kills, log: [...this.log], flags: { ...this.flags } }; }
+  restore(s) {
+    this.stage = s?.stage || 'prologue'; this.kills = s?.kills || 0; this.log = s?.log || []; this.flags = s?.flags || {}; if (this.stage === 'ambush') this.stage = 'find_amos';
+    this.valkBusy = false; this.bossSeen = false; this.ambush = []; this.ambushSpawned = false; for (const e of this.enemies.list.filter(e => e.boss)) { e.dispose(); this.enemies.list.splice(this.enemies.list.indexOf(e), 1); }
+    this.save(); this.updateObjective(); this.toggleJournal(false);
+  }
   reset() { this.stage = 'prologue'; this.kills = 0; this.log = []; this.flags = {}; this.save(); this.updateObjective(); this.toggleJournal(false); }
   name() { return this.getName() || 'Forastero'; }
   where(p) { const P = this.player.pos, d = Math.hypot(p.x - P.x, p.z - P.z); return d > 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m'; }
@@ -88,7 +94,7 @@ export class Story {
     if (!o) { el.classList.add('hidden'); return; } el.classList.remove('hidden'); el.textContent = '◆ ' + o.text + (o.at ? `  ·  ${this.where(o.at)}` : ''); this.worldMap.wp = o.at ? { x: o.at.x, z: o.at.z } : null;
   }
   set(stage, note) {
-    this.stage = stage; this.kills = 0; if (note) this.log.push(note); this.save(); this.updateObjective(); const o = this.objective();
+    this.stage = stage; this.kills = 0; if (note) this.log.push(note); this.save(); this.updateObjective(); this.onStage?.(stage); const o = this.objective();
     if (o && stage !== 'free') this.toast?.('Nuevo objetivo', o.text);
   }
   toggleJournal(force) {
@@ -118,6 +124,7 @@ export class Story {
     if (this.stage === 'clear_camp' && e.camp && e.camp.id === this.camp1.id) { this.kills++; this.updateObjective(); if (this.kills >= 3) this.set('return_vargas', `Acabé con los bandidos del ${this.camp1.name}.`); }
     if (this.stage === 'ambush') { this.ambush = this.ambush.filter(x => x !== e); if (!this.ambush.length) this.set('return2', 'Sobreviví a la emboscada de los hombres de Cuervo.'); }
     if (e.boss && !e.valk && this.stage === 'boss') setTimeout(() => this.playEpilogue(), 2500);
+    if (e.valk) this.flags.valkDead = true;
     if (e.valk && this.stage === 'ch2_boss') setTimeout(() => this.playValkEpilogue(), 3200);
   }
   playEpilogue() {
@@ -203,6 +210,7 @@ export class Story {
         if (d < 150 && !this.enemies.list.some(e => e.boss) && !this.flags.bossDead) this.enemies.spawnBoss(h);
         const boss = this.enemies.list.find(e => e.boss); if (boss && !this.bossSeen && d < 34 && !this.cine.active) { this.bossSeen = true; this.playBossIntro(); }
       }
+      if (this.stage === 'ch2_boss' && !this.flags.valkDead && !this.valkBusy && !this.enemies.list.some(e => e.valk) && Math.hypot(P.x - this.arena.x, P.z - this.arena.z) < 160) { this.valkBusy = true; this.enemies.spawnValkyrie(this.arena.x, this.arena.z, false).then(v => { v.yaw = Math.atan2(P.x - v.pos.x, P.z - v.pos.z); }); }      // loaded a save in the middle of the fight
       if (this.stage === 'ch2_go' && !this.valkBusy && !this.cine.active) { const A = this.arena, d = Math.hypot(P.x - A.x, P.z - A.z); if (d < 75) this.playValkIntro(); }
       if (this.stage === 'ambush' && !this.ambush.length && this.flags.mapA && this.ambushSpawned) this.set('return2', 'Sobreviví a la emboscada.');
     }
@@ -223,7 +231,7 @@ export class Story {
     }
     if (k === 'bruno') {
       if (s === 'talk_bruno') return chain(['Amos... Lleva semanas escondido, con miedo a que Cuervo le encuentre. Está en ' + this.village.name + `, al ${dirName(this.village.x - this.city.x, this.village.z - this.city.z)}.`, 'Dile que vas de parte de Elías. Y ten cuidado: Cuervo tiene ojos en cada camino.'], () => { this.set('find_amos', 'Bruno me dijo dónde encontrar a Amos Reed.'); return null; });
-      return { text: 'Sopa, cama y silencio. Lo demás no lo sirvo.', options: end };
+      return { text: 'Sopa, cama y silencio. Lo demás no lo sirvo.', options: [['¿Una partida de dados?', () => { setTimeout(() => this.npcs?.shop?.open('dice', npc), 40); return null; }], ...end] };
     }
     if (k === 'amos') {
       if (s === 'find_amos') { setTimeout(() => this.playAmos(), 50); return null; }
