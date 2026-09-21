@@ -8,7 +8,7 @@ const SAVE = 'openworld.story.v1';
 const ease = t => t * t * (3 - 2 * t);
 // Voice acting: assets/voice/<id>.mp3, id = FNV-1a hash of the subtitle text; only ids listed in assets/voice/index.json are played.
 export const voiceId = text => { let h = 0x811c9dc5; for (const ch of text) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return h.toString(16).padStart(8, '0'); };
-let VOICES = null; const loadVoices = () => VOICES || (VOICES = fetch('assets/voice/index.json').then(r => r.ok ? r.json() : []).then(a => new Set(a)).catch(() => new Set()));
+let VOICES = null; const loadVoices = () => VOICES || (VOICES = fetch('assets/voice/index.json').then(r => r.ok ? r.json() : {}).then(o => Array.isArray(o) ? Object.fromEntries(o.map(k => [k, 'mp3'])) : o).catch(() => ({})));
 const $ = id => document.getElementById(id);
 const dirName = (dx, dz) => ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][Math.round(((Math.atan2(dx, -dz) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8];
 
@@ -27,7 +27,7 @@ export class Cinematics {
     this.sub.innerHTML = s.text ? `<b>${s.who || ''}</b><span></span>` : ''; this.subSpan = this.sub.querySelector('span'); s.enter?.(); this.speak(s);
   }
   speak(s) {
-    this.stopVoice(); if (!s.text) return; const id = voiceId(s.text), idx = this.i; loadVoices().then(set => { if (!set.has(id) || !this.active || this.i !== idx) return; const a = this.voice = new Audio(`assets/voice/${id}.mp3`); a.volume = .95; a.play().catch(() => { }); });
+    this.stopVoice(); if (!s.text) return; const id = voiceId(s.text), idx = this.i; loadVoices().then(map => { if (!map[id] || !this.active || this.i !== idx) return; const a = this.voice = new Audio(`assets/voice/${id}.${map[id]}`); a.volume = .95; a.play().catch(() => { }); });
   }
   stopVoice() { if (this.voice) { this.voice.pause(); this.voice = null; } }
   skip() { if (!this.active) return; this.stopVoice(); this.i = this.shots.length; this.end(); }
