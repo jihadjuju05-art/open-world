@@ -2,6 +2,7 @@
 // They live in camps (settlements of type 4) and only exist while the player is near.
 import * as THREE from 'three';
 import { GltfBody } from './character.js';
+import { Valkyrie, loadValkyrie } from './boss.js';
 import { LIGHT, HEAVY, TUNING, bodySpheres, bladeHit, arcHit } from './combat.js';
 
 const V3 = THREE.Vector3;
@@ -122,6 +123,7 @@ export class EnemyManager {
   spawnAmbush(x, z, n, radius) { const out = []; this.ambushId = (this.ambushId || 900) + 1; const camp = { id: this.ambushId, x, z, type: 4 };
     for (let k = 0; k < n; k++) { const e = new Bandit(this, camp, k); const a = k * 2.1 + Math.random(), r = radius * (.8 + Math.random() * .4); e.pos.set(x + Math.cos(a) * r, 0, z + Math.sin(a) * r); e.pos.y = this.terrain.height(e.pos.x, e.pos.z); e.aggro = true; e.state = 'chase'; this.list.push(e); out.push(e); } return out; }
   spawnBoss(camp) { const e = new Bandit(this, camp, 99, false, { boss: true }); e.pos.set(camp.x + 2, 0, camp.z + 2); e.pos.y = this.terrain.height(e.pos.x, e.pos.z); this.list.push(e); return e; }
+  async spawnValkyrie(x, z, aggro = false) { await loadValkyrie(); const v = new Valkyrie(this, null, { aggro }); v.pos.set(x, this.terrain.height(x, z), z); this.list.push(v); return v; }
   allTargets() { const a = []; if (this.combat.alive) a.push(this.local); for (const t of this.extraTargets()) if (t.alive) a.push(t); return a; }
   nearestTarget(e) { let best = null, bd = 1e9; for (const t of this.allTargets()) { const d = Math.hypot(t.pos.x - e.pos.x, t.pos.z - e.pos.z); if (d < bd) { bd = d; best = t; } } return best || this.local; }
   // ---- co-op networking: the host owns the enemies, clients render puppets ----
@@ -133,8 +135,9 @@ export class EnemyManager {
     }
     const now = performance.now(); for (const e of this.list.slice()) if (e.puppet && now - (e.lastNet || now) > 2500) { e.dispose(); this.list.splice(this.list.indexOf(e), 1); }
   }
-  update(dt) {
+  update(dt, real = dt) {
     const P = this.player.pos;
+    if (dt === 0) { for (const e of this.list) e.idleTick?.(real); return; }        // cinematic running: only keep the animations going
     if (this.puppetMode) { for (const e of this.list.slice()) { e.update(dt); if (e.dead && e.t < -8) { e.dispose(); this.list.splice(this.list.indexOf(e), 1); } } return; }
     if ((this.scan -= dt) <= 0) {
       this.scan = 1; const now = performance.now();

@@ -47,12 +47,12 @@ export class Story {
     this.camp1 = camps.slice().sort((a, b) => d(a) - d(b))[0]; this.hideout = camps.filter(s => d(s) < 2700 && d(s) > 900).sort((a, b) => d(b) - d(a))[0] || camps[camps.length - 1];
     const vill = plan.settlements.filter(s => s.type === 2 && d(s) > 450).sort((a, b) => d(a) - d(b))[0] || plan.settlements.find(s => s.type === 2); this.village = vill;
     this.pos.amos = { x: vill.x + Math.cos(vill.axis + 1.57) * 9, z: vill.z + Math.sin(vill.axis + 1.57) * 9 };
-    this.stage = 'prologue'; this.kills = 0; this.log = []; this.flags = {}; this.load(); this.updateObjective(); this.ambush = []; this.bossSeen = false;
+    this.arena = this.pickArena(); this.stage = 'prologue'; this.kills = 0; this.log = []; this.flags = {}; this.load(); this.updateObjective(); this.ambush = []; this.bossSeen = false;
     $('journalbtn')?.addEventListener('click', () => this.toggleJournal());
     addEventListener('keydown', e => { if (e.code === 'KeyJ' && !e.repeat && !this.cine.active) this.toggleJournal(); });
   }
   save() { try { localStorage.setItem(SAVE, JSON.stringify({ stage: this.stage, kills: this.kills, log: this.log, flags: this.flags })); } catch { } }
-  load() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); if (s) { this.stage = s.stage; this.kills = s.kills || 0; this.log = s.log || []; this.flags = s.flags || {}; } } catch { } }
+  load() { try { const s = JSON.parse(localStorage.getItem(SAVE) || 'null'); if (s) { this.stage = s.stage; this.kills = s.kills || 0; this.log = s.log || []; this.flags = s.flags || {}; if (this.stage === 'free' && !this.flags.ch2) { this.stage = 'ch2_go'; this.flags.ch2 = true; this.log.push('El medallón de mi padre empezó a brillar.'); } } } catch { } }
   reset() { this.stage = 'prologue'; this.kills = 0; this.log = []; this.flags = {}; this.save(); this.updateObjective(); this.toggleJournal(false); }
   name() { return this.getName() || 'Forastero'; }
   where(p) { const P = this.player.pos, d = Math.hypot(p.x - P.x, p.z - P.z); return d > 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m'; }
@@ -68,7 +68,9 @@ export class Story {
       case 'ambush': return { text: 'Sobrevive a la emboscada.', at: null };
       case 'return2': return { text: `Lleva la mitad del mapa al sheriff Vargas en ${c}.`, at: this.pos.vargas };
       case 'boss': return { text: `Derrota a Silas «El Cuervo» en su guarida: ${this.hideout.name}.`, at: this.hideout };
-      case 'free': return { text: 'Fin del capítulo 1. Explora el mundo libremente: hay más campamentos, pueblos y secretos.', at: null };
+      case 'ch2_go': return { text: `El medallón de tu padre brilla con luz turquesa. Sigue su llamada hasta ${this.arena.name}.`, at: this.arena };
+      case 'ch2_boss': return { text: `Derrota a Kaelith, la Segadora, en ${this.arena.name}.`, at: this.arena };
+      case 'free': return { text: 'Fin del capítulo 2. Explora el mundo libremente: hay más campamentos, pueblos y secretos.', at: null };
       default: return null;
     }
   }
@@ -82,12 +84,13 @@ export class Story {
   }
   toggleJournal(force) {
     const el = $('journal'); const on = force ?? el.classList.contains('hidden'); el.classList.toggle('hidden', !on); if (!on) return; const o = this.objective();
-    el.innerHTML = `<h3>DIARIO</h3><h4>Polvo y ceniza</h4>${o ? `<p class="cur">◆ ${o.text}</p>` : ''}<ul>${this.log.map(l => `<li>✓ ${l}</li>`).join('')}</ul><p class="tip">R espada · clic atacar (mantener: fuerte) · clic der. bloquear · V esquivar · 1-6 emociones · Q caballo · M mapa · J diario</p><button class="mbtn" id="jreset">Reiniciar historia</button>`;
+    el.innerHTML = `<h3>DIARIO</h3><h4>${this.flags.ch2 || this.stage.startsWith('ch2') ? 'El canto de las hoces' : 'Polvo y ceniza'}</h4>${o ? `<p class="cur">◆ ${o.text}</p>` : ''}<ul>${this.log.map(l => `<li>✓ ${l}</li>`).join('')}</ul><p class="tip">R espada · clic atacar (mantener: fuerte) · clic der. bloquear · V esquivar · 1-6 emociones · Q caballo · M mapa · J diario</p><button class="mbtn" id="jreset">Reiniciar historia</button>`;
     $('jreset').onclick = () => this.reset();
   }
   // ---- anchors used by cutscenes ----
   resolve = a => {
     const T = this.terrain; if (a === 'player') return Object.assign(new V3(this.player.pos.x, this.player.pos.y, this.player.pos.z), { yaw: this.player.yaw }); if (a === 'city') return new V3(this.city.x, T.height(this.city.x, this.city.z) + 6, this.city.z);
+    if (a === 'arena') return new V3(this.arena.x, T.height(this.arena.x, this.arena.z), this.arena.z); if (a === 'valk') { const b = this.enemies.list.find(e => e.valk); return b ? Object.assign(new V3(b.pos.x, b.pos.y, b.pos.z), { yaw: b.yaw }) : this.resolve('arena'); }
     if (a === 'hideout') return new V3(this.hideout.x, T.height(this.hideout.x, this.hideout.z), this.hideout.z); if (a === 'boss') { const b = this.enemies.list.find(e => e.boss); return b ? Object.assign(new V3(b.pos.x, b.pos.y, b.pos.z), { yaw: b.yaw }) : this.resolve('hideout'); }
     const p = this.pos[a], nn = this.npcs?.storyNpcs?.[a]; return p ? Object.assign(nn ? new V3(nn.pos.x, nn.pos.y, nn.pos.z) : new V3(p.x, T.height(p.x, p.z), p.z), { yaw: nn ? nn.yaw : 0 }) : new V3(this.player.pos.x, this.player.pos.y, this.player.pos.z);
   };
@@ -105,7 +108,8 @@ export class Story {
   onKill(e) {
     if (this.stage === 'clear_camp' && e.camp && e.camp.id === this.camp1.id) { this.kills++; this.updateObjective(); if (this.kills >= 3) this.set('return_vargas', `Acabé con los bandidos del ${this.camp1.name}.`); }
     if (this.stage === 'ambush') { this.ambush = this.ambush.filter(x => x !== e); if (!this.ambush.length) this.set('return2', 'Sobreviví a la emboscada de los hombres de Cuervo.'); }
-    if (e.boss && this.stage === 'boss') setTimeout(() => this.playEpilogue(), 2500);
+    if (e.boss && !e.valk && this.stage === 'boss') setTimeout(() => this.playEpilogue(), 2500);
+    if (e.valk && this.stage === 'ch2_boss') setTimeout(() => this.playValkEpilogue(), 3200);
   }
   playEpilogue() {
     const n = this.name();
@@ -113,7 +117,53 @@ export class Story {
       { t: 6, at: 'boss', rel: true, orbit: [5, 3.2, 1.3, 1.4, .5, .1], look: 1.0, fov: [40, 32], who: 'Silas «El Cuervo»', text: 'Tu padre... también luchó así. Y tampoco supo lo que había en el mapa.' },
       { t: 6, at: 'player', orbit: [4, 3, 1.7, 1.6, 2.2, 2.9], look: 1.6, fov: [38, 34], who: n, text: 'La mitad de este mapa señala un lugar que no aparece en ningún plano.' },
       { t: 7, at: 'hideout', orbit: [50, 30, 22, 10, 0, 2.2], look: 3, fov: [52, 40], who: 'Narrador', text: 'Pero eso es otra historia. Fin del capítulo 1: Polvo y ceniza.' },
-    ], () => { this.set('free', 'Derroté a Silas «El Cuervo» y recuperé la mitad del mapa del Oro Viejo.'); this.toast?.('Capítulo completado', 'Polvo y ceniza'); });
+    ], () => { this.flags.ch2 = true; this.toast?.('Capítulo 1 completado', 'Polvo y ceniza'); this.set('ch2_go', 'Derroté a Silas «El Cuervo» y recuperé la mitad del mapa del Oro Viejo.'); setTimeout(() => this.toast?.('Capítulo 2', 'El canto de las hoces'), 2500); });
+  }
+  // ---- chapter 2: "El canto de las hoces" ----
+  // A flat, dry clearing far from every settlement where the guardian waits.
+  pickArena() {
+    const T = this.terrain, c = this.city, sets = this.plan.settlements;
+    for (let r = 650; r <= 1500; r += 75) for (let i = 0; i < 48; i++) {
+      const a = i * Math.PI / 24 + r * .013, x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r, h = T.height(x, z); if (h < 4 || h > 45 || T.slopeAt(x, z) > .1 || T.hf.forest(x, z) > .1) continue;
+      if (sets.some(s => Math.hypot(s.x - x, s.z - z) < 180) || T.riverAt(x, z).t > .02) continue; let ok = true;
+      for (let k = 0; k < 8 && ok; k++) { const xx = x + Math.cos(k * .785) * 22, zz = z + Math.sin(k * .785) * 22; if (Math.abs(T.height(xx, zz) - h) > 3.5 || T.riverAt(xx, zz).t > .02 || T.hf.forest(xx, zz) > .1 || T.hf.forest(x + Math.cos(k * .785) * 40, z + Math.sin(k * .785) * 40) > .1) ok = false; }
+      if (ok) return { x, z, name: 'el Claro del Alba' };
+    }
+    const h = this.hideout; return { x: h.x + 60, z: h.z + 60, name: 'el Claro del Alba' };
+  }
+  // Optional AI-made video (assets/video/ch2_boss.mp4, e.g. from Runway); skipped silently when the file does not exist.
+  async playVideo(src) {
+    let ok = false; try { ok = (await fetch(src, { method: 'HEAD' })).ok; } catch { } if (!ok) return;
+    await new Promise(res => {
+      const box = document.createElement('div'); box.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+      const v = document.createElement('video'); v.src = src; v.autoplay = true; v.playsInline = true; v.style.cssText = 'max-width:100%;max-height:100%'; box.append(v);
+      const hint = document.createElement('div'); hint.textContent = 'Clic o Esc para saltar'; hint.style.cssText = 'position:absolute;right:18px;bottom:14px;color:#fff8;font:12px sans-serif'; box.append(hint); document.body.append(box);
+      this.cine.onStart?.(); let done = false; const end = () => { if (done) return; done = true; removeEventListener('keydown', key, true); box.remove(); this.cine.onEnd?.(); res(); };
+      const key = e => { if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); end(); } }; addEventListener('keydown', key, true);
+      v.onended = end; v.onerror = end; box.onclick = end; v.play?.().catch(end);
+    });
+  }
+  flashScreen(color, ms = 700) { const d = document.createElement('div'); d.style.cssText = `position:fixed;inset:0;background:${color};opacity:.85;pointer-events:none;z-index:9998;transition:opacity ${ms}ms ease-out`; document.body.append(d); requestAnimationFrame(() => requestAnimationFrame(() => { d.style.opacity = 0; })); setTimeout(() => d.remove(), ms + 100); }
+  async playValkIntro() {
+    this.valkBusy = true; const A = this.arena, n = this.name(); let v = this.enemies.list.find(e => e.valk);
+    if (!v) { v = await this.enemies.spawnValkyrie(A.x, A.z, false); }
+    v.yaw = Math.atan2(this.player.pos.x - v.pos.x, this.player.pos.z - v.pos.z);
+    await this.playVideo('assets/video/ch2_boss.mp4');
+    this.cine.play([
+      { t: 7, at: 'arena', orbit: [46, 30, 18, 9, 2.2, 3.0], look: 2, fov: [58, 44], who: 'Narrador', text: 'El medallón de Elías Reyes no era una joya. Era una llave.' },
+      { t: 5.5, at: 'player', orbit: [4.4, 3.2, 1.7, 1.6, 3.2, 2.7], look: 1.6, fov: [40, 32], who: n, text: 'Vibra contra mi pecho... como si algo, al otro lado, respondiera.' },
+      { t: 6.5, at: 'valk', rel: true, orbit: [10, 5.4, 1.7, 1.2, .55, .1], look: 1.4, fov: [50, 30], who: 'Kaelith, la Segadora', text: 'Tres veces han venido a buscar lo que guardas. Tres veces las hoces cantaron.', enter: () => { v.showAttack?.(); v.burst?.(); this.flashScreen('#40f5e6'); } },
+      { t: 5.5, at: 'valk', rel: true, orbit: [3.2, 2.4, 1.4, 1.9, -.35, -.05], look: 1.75, fov: [34, 26], who: 'Kaelith, la Segadora', text: 'Tu padre juró que nadie más vendría. Mintió... o tú eres su promesa rota.' },
+      { t: 5, at: 'valk', rel: true, orbit: [12, 6, 2.2, 3.4, 1.9, 2.6], look: 1.4, fov: [56, 40], who: 'Kaelith, la Segadora', text: 'Empuña tu acero, forastero. Las hoces no preguntan.', enter: () => { v.burst?.(); this.flashScreen('#ffffff', 500); } },
+    ], () => { v.aggro = true; v.state = 'chase'; this.set('ch2_boss', 'Kaelith, la Segadora custodia el Claro del Alba.'); });
+  }
+  playValkEpilogue() {
+    const n = this.name();
+    this.cine.play([
+      { t: 6, at: 'valk', rel: true, orbit: [5, 3.4, 1.2, 1.5, .5, .1], look: 1.0, fov: [40, 30], who: 'Kaelith, la Segadora', text: 'El Oro Viejo... nunca fue oro. Es lo que sellamos bajo la montaña.' },
+      { t: 5.5, at: 'player', orbit: [4, 3, 1.7, 1.6, 2.4, 3.0], look: 1.6, fov: [38, 34], who: n, text: 'Mi padre lo sabía. Por eso lo mataron.' },
+      { t: 7, at: 'arena', orbit: [50, 34, 24, 12, 0, 1.4], look: 3, fov: [54, 42], who: 'Narrador', text: 'Pero eso es otra historia. Fin del capítulo 2: El canto de las hoces.' },
+    ], () => { this.set('free', 'Derroté a Kaelith, la Segadora, guardiana del Claro del Alba.'); this.toast?.('Capítulo 2 completado', 'El canto de las hoces'); });
   }
   talk(key, on) { const npc = this.npcs?.storyNpcs?.[key]; if (!npc) return; if (on) { npc.state = 'talk'; } else { npc.state = 'idle'; npc.timer = 4; } }
   playAmos() {
@@ -144,6 +194,7 @@ export class Story {
         if (d < 150 && !this.enemies.list.some(e => e.boss) && !this.flags.bossDead) this.enemies.spawnBoss(h);
         const boss = this.enemies.list.find(e => e.boss); if (boss && !this.bossSeen && d < 34 && !this.cine.active) { this.bossSeen = true; this.playBossIntro(); }
       }
+      if (this.stage === 'ch2_go' && !this.valkBusy && !this.cine.active) { const A = this.arena, d = Math.hypot(P.x - A.x, P.z - A.z); if (d < 75) this.playValkIntro(); }
       if (this.stage === 'ambush' && !this.ambush.length && this.flags.mapA && this.ambushSpawned) this.set('return2', 'Sobreviví a la emboscada.');
     }
   }
@@ -157,6 +208,7 @@ export class Story {
       if (s === 'clear_camp') return { text: `Aún hay bandidos en el ${this.camp1.name}. Ve con cuidado: bloquea justo cuando ataquen para desviar sus golpes.`, options: end };
       if (s === 'return_vargas') return chain(['Sabía que no me equivocaba contigo. Pero estos solo eran perros; el amo tiene la mitad de un mapa: el del Oro Viejo, la mina que tu padre encontró.', 'Elías lo partió en dos antes de morir. Una mitad la guarda un buscador, Amos Reed. Habla primero con Bruno, el posadero: él sabe dónde se esconde.'], () => { this.set('talk_bruno', 'Vargas me habló del mapa del Oro Viejo y de Amos Reed.'); return null; });
       if (s === 'return2') return chain(['Dos mitades... y Cuervo tiene la otra. Su guarida está en ' + this.hideout.name + `, al ${dirName(this.hideout.x - this.city.x, this.hideout.z - this.city.z)} de aquí, muy vigilada.`, `Toma este consejo: la esquiva te salva de un golpe fuerte; el bloqueo a tiempo, además, deja al enemigo aturdido. Ve, ${n}. Elías estaría orgulloso.`], () => { this.set('boss', 'Vargas me señaló la guarida de Cuervo en ' + this.hideout.name + '.'); return null; });
+      if (s === 'ch2_go' || s === 'ch2_boss') return { text: 'Ese medallón brilla... Nunca lo vi hacerlo. Sigue su luz, pero no vayas con la guardia baja. Yo vigilo la ciudad.', options: end };
       if (s === 'free') return { text: 'Cuervo ha caído, pero el Oro Viejo sigue sin aparecer. Este es solo el principio.', options: end };
       return { text: 'Aquí la ley soy yo. Ándate con ojo, forastero.', options: end };
     }

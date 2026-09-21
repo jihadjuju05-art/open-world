@@ -4,3 +4,5 @@ Modified: colours baked to vertex colours, meshes merged, doors separated, exter
 
 Universal Base Characters (female body) - Quaternius, CC0 - https://quaternius.com
 Modular Character Outfits - Fantasy (Female Peasant/Ranger) - Quaternius, CC0
+
+Stylized Female Character (Kaelith, boss) - RetroStyleGames, Unity Asset Store free version. Check its license before redistributing.
